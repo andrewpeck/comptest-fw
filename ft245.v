@@ -1,25 +1,7 @@
 `timescale 1ns / 1ps
-//////////////////////////////////////////////////////////////////////////////////
-// Company:
-// Engineer:
-//
-// Create Date:    16:34:09 12/04/2014
-// Design Name:
-// Module Name:    ft245
-// Project Name:
-// Target Devices:
-// Tool versions:
-// Description:
-//
-// Dependencies:
-//
-// Revision:
-// Revision 0.01 - File Created
-// Additional Comments:
-//
-//////////////////////////////////////////////////////////////////////////////////
 
-module ft245(
+module ft245
+(
     input clk,
 
     // When high, do not write data into the FIFO. When low, data
@@ -51,148 +33,123 @@ module ft245(
     // Output enable when low to drive data onto D0-7. This should
     // be driven low at least 1 clock period before driving RD# low to
     // allow for data buffer turn-around.
-    output reg _oe,              // Output enable, high to write to USB
+    output reg _oe,                // Output enable, high to write to USB
 
-    input      _reset,           // low for reset
+    input      _reset,             // low for reset
 
-    inout [7:0] data,   // Bidirectional FIFO data
+    inout [7:0] data,              // Bidirectional FIFO data
 
+    input   _write_data,           // put low if you want to write data
+    input   _read_data,            // put low if you want to read data
 
-
-
-    input   data_av,            // put low if you want to write data
-    input   read_data,          // put high if you want to read data
-
-    input   [7:0]     data_in,  // Input Register Buffer
-    output  reg [7:0] data_out      // Output Register Buffer
+    input   [7:0]     data_to_pc,  // Input Register Buffer
+    output  reg [7:0] data_to_fpga // Output Register Buffer
 );
 
-
-//assign _rd = _rd;
-//assign _wr = _wr;
-//assign _oe = _oe;
-//assign _reset = _reset;
-//assign  data [7:0] = data[7:0]
-//assign  data_av = data_av;
-//assign  read_data = read_data;
-//assign  data_in [7:0] = _data_in [7:0];
-//assign  data_out [7:0] = _data_out [7:0];
-
 // data Should Float When TXE# is high
-assign data = (_txe) ? data_out : 'bz;
+assign data = (!_txe) ? data_to_pc : 7'bz;
 
 parameter [2:0]
-Idle         = 0,
-Next_isWrite = 1,
-Write        = 2,
-Next_isRead  = 3,
-Read         = 4;
+Idle         = 3'h0,
+Next_isWrite = 3'h1,
+Write        = 3'h2,
+Next_isRead  = 3'h3,
+Read         = 3'h4;
 
-reg [2:0] state;
-reg [2:0] next_state;
+reg [2:0] ftstate;
+reg [2:0] next_ftstate;
 
 // Combinatorial Block
 always @(*) begin
-    case(state)
+    case(ftstate)
         Idle :
         begin
-            if (data_av  ==1 && _txe==0) 
-                next_state <= Next_isWrite;
-            else if (read_data==1 && _rxf==0) 
-                next_state <= Next_isRead;
-            else 
-                next_state <= Idle;
+            if (_write_data==0 && _txe==0)
+                next_ftstate <= Next_isWrite;
+            else if (_read_data==0 && _rxf==0)
+                next_ftstate <= Next_isRead;
+            else
+                next_ftstate <= Idle;
         end
 
-        Next_isWrite :
-        begin
-            next_state <= Write;
-        end
+        Next_isWrite:
+            next_ftstate <= Write;
 
-        Write :
-        begin
-            if (data_av==1 && _txe==0 && read_data==0) 
-                next_state <= Write;
-            else 
-                next_state <= Idle;
-        end
+        Write:
+            next_ftstate <= (_write_data==0 && _txe==0) ? Write : Idle;
+            //next_ftstate <= (_write_data==0 && _txe==0 && _read_data==1) ? Write : Idle;
 
-        Next_isRead :
-        begin
-            next_state <= Read;
-        end
+        Next_isRead:
+            next_ftstate <= Read;
 
-        Read :
-        begin
+        Read:
+            next_ftstate <= Idle;
             // put here a mode to stay in read mode if more data is available ?
-            next_state <= Idle;
-        end
 
-        default :
-        begin
-            next_state <= Idle;
-        end
+        default:
+            next_ftstate <= Idle;
     endcase
 end
 
 // Sequential Block
-always @(posedge clk or negedge _reset) begin
-    if (_reset == 0)
-        state <= Idle;
+always @(posedge clk) begin
+    if (_reset==0)
+        ftstate <= Idle;
     else
-    begin
-        state <= next_state;
-        //data <= data_in;
-    end
+        ftstate <= next_ftstate;
 end
 
 //Sequential Output Block
-always @(*) begin
-    case(state)
+always @(posedge clk) begin
+    case(ftstate)
         Idle :
         begin
-            _rd <= 1;
-            _oe <= 1;
-            _wr <= 1;
+            _rd <= 1'b1;
+            _oe <= 1'b1;
+            _wr <= 1'b1;
         end
 
         Next_isWrite :
         begin
-            _rd <= 1;
-            _oe <= 1;
-            _wr <= 1;
+            _rd <= 1'b1;
+            _oe <= 1'b1;
+            _wr <= 1'b1;
         end
 
         Write :
         begin
-            //data = data_in;
-            _rd <= 1;
-            _oe <= 1;
-            if (_txe==0 && data_av==1)
-                _wr <= 0; // the wr low can be used to trigger that the next byte is load into data_in
-            else
-                _wr <= 1;
+            _rd <= 1'b1;
+            _oe <= 1'b1;
+            _wr <= 1'b0; // (!_txe && _write_data) ? 1'b0 : 1'b1;
+            // the wr low can be used to trigger that the next byte is load
+            // into data_to_pc
         end
 
         Next_isRead :
         begin
-            _rd <= 1;
-            _oe <= 0;
-            _wr <= 1;
+            // We do this here since we need to drive OE# low at least one
+            // clock period before driving RD# low.
+            _rd <= 1'b1;
+            _oe <= 1'b0;
+            _wr <= 1'b1;
         end
 
         Read :
         begin
-            data_out <= data;
-            _oe <= 0;
-            _wr <= 1;
-            if (_rxf == 0)
-                _rd <= 0;
-            else
-                _rd <= 1;
+            data_to_fpga <= data;
+            _oe <= 1'b0;
+            _wr <= 1'b1;
+            _rd <= 1'b0; //(!_rxf) ? 1'b0 : 1'b1;
+        end
+
+        default:
+        begin
+            _rd <= 1'b1;
+            _oe <= 1'b1;
+            _wr <= 1'b1;
+            data_to_fpga <= 8'h00;
         end
 
     endcase
 end
 endmodule
-
