@@ -1,101 +1,124 @@
 `timescale 1ns / 1ps
-///////////////////////////////////////////////////////////////////////////////
-// Company: 
-// Engineer: 
-// 
-// Create Date:    10:02:41 03/03/2015 
-// Design Name: 
-// Module Name:    comparator_injector 
-// Project Name: 
-// Target Devices: 
-// Tool versions: 
-// Description: 
-//
-// Dependencies: 
-//
-// Revision: 
-// Revision 0.01 - File Created
-// Additional Comments: 
-//
-///////////////////////////////////////////////////////////////////////////////
+
+// TODO: compin_inject needs to do something.
 
 module comparator_injector(
-    input [31:0] halfstrips, 
-    input [31:0] halfstrips_expect, 
+    input [31:0] halfstrips,
+    input [31:0] halfstrips_expect,
 
     output reg [31:0] halfstrips_errcnt,
     output reg [31:0] compout_errcnt,
 
-    input compout, 
-    input compout_expect, 
+    input compout,
+    input compout_expect,
 
-    input compout_errcnt_rst, 
-    input halfstrips_errcnt_rst, 
+    input compout_errcnt_rst,
+    input halfstrips_errcnt_rst,
 
-    input compin_inject, 
-    output reg compin, 
+    input compin_inject,
+    output reg compin,
 
-    input fire_pulse, 
-    output reg pulser_ready, 
+    input fire_pulse,
+    output reg pulser_ready,
 
-    input [2:0] bx_delay, 
+    input [2:0] bx_delay,
     input [3:0] pulse_width,
 
     output reg pulse_en,
 
-    input clock40	
+    input clk
 );
 
-reg [3:0] bx; 
-initial 
+reg [3:0] bx;
+reg [1:0] state;
+reg [1:0] next_state;
+initial
 begin
-    bx = 0;
+    bx                = 3'h0;
+    state             = 2'h0;
+    next_state        = 2'h0;
+    compout_errcnt    = 32'h0;
+    halfstrips_errcnt = 32'h0;
 end
 
-always @ (posedge clock40)
-begin
+parameter [2:0] idle     = 2'h0;
+parameter [2:0] pulseon  = 2'h1;
+parameter [2:0] pulseoff = 2'h2;
+parameter [2:0] readout  = 2'h3;
 
+always @(*)
+begin
+    case (state)
+        idle:
+        begin
+            if (fire_pulse && bx==0) next_state = pulseon;
+            else next_state = idle;
+        end
+
+        pulseon:
+        begin
+            if (bx==pulse_width) next_state = pulseoff;
+            else next_state = pulseon;
+        end
+
+        pulseoff:
+        begin
+            if (bx==bx_delay) next_state = readout;
+            else next_state = pulseoff;
+        end
+
+        readout:
+            next_state = idle;
+
+        default:
+            next_state = idle;
+
+    endcase
+end
+
+// SEQUENTIAL LOGIC
+always @(posedge clk)
+begin
+    state <= next_state;
+end
+
+// OUTPUT LOGIC
+always @ (posedge clk)
+begin
     if (halfstrips_errcnt_rst)
-    begin
-        halfstrips_errcnt = 0; 
-    end
+        halfstrips_errcnt <= 1'b0;
 
     if (compout_errcnt_rst)
-    begin
-        compout_errcnt = 0; 
-    end
+        compout_errcnt <= 1'b0;
 
-    // turn on digipulse at first bx
-    if (fire_pulse && bx==0 && pulser_ready)
-    begin
-        pulse_en     = 1;
-        pulser_ready = 0; 
-    end
+    case (state)
+        idle:
+        begin
+            bx <= 1'b0;
+            pulser_ready <= 1'b1;
+        end
 
-    //  turn off digipulse after pulse_width bxs
-    if (bx==pulse_width)
-    begin
-        pulse_en   = 0; 
-    end
+        pulseon:
+        begin
+            pulse_en     <= 1'b1;
+            pulser_ready <= 1'b0;
+            bx <= 4'hF & (bx + 1'b1);
+        end
 
-    // wait until some later point in time
-    // (value depends on shaping circuit)
-    // should be determined empirically...
-    if (bx < bx_delay)
-    begin
-        bx <= (bx+1);
-    end 
-    else if (bx == bx_delay)
-    begin
-        // Pulse Injector Error Counter
-        if (halfstrips!=halfstrips_expect)
-            halfstrips_errcnt = halfstrips_errcnt + 1; 
+        pulseoff:
+        begin
+            pulse_en <= 1'b0;
+            bx       <= 4'hF & (bx + 1'b1);
+        end
 
-        if (compout!=compout_expect)
-            compout_errcnt = compout_errcnt + 1; 
+        readout:
+        begin
+            if (halfstrips!=halfstrips_expect)
+                halfstrips_errcnt <= 32'hFFFFFFFF & (halfstrips_errcnt + 1);
 
-        bx <= 0;
-        pulser_ready = 1;
-    end	 
+            if (compout!=compout_expect)
+                compout_errcnt <= 32'hFFFFFFFF & (compout_errcnt + 1);
+        end
+    endcase
 end
 endmodule
