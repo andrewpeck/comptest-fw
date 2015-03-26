@@ -1,108 +1,111 @@
-###############################################################
-## Author   : Stefan Ritt
-## Contents : DRS4_EVAL1 FPGA constraint file
-## $Id: drs4_eval1.ucf 13572 2009-06-12 08:43:09Z ritt $
-###############################################################
-
 CONFIG PART = XC6SLX4-3TQG144 ;
 
-NET "ft_data<0>" LOC="P143";
-NET "ft_data<1>" LOC="P142";
-NET "ft_data<2>" LOC="P141";
-NET "ft_data<3>" LOC="P140";
-NET "ft_data<4>" LOC="P139";
-NET "ft_data<5>" LOC="P138";
-NET "ft_data<6>" LOC="P137";
-NET "ft_data<7>" LOC="P134";
+NET "ft_data<0>"  LOC= "P143";
+NET "ft_data<1>"  LOC= "P142";
+NET "ft_data<2>"  LOC= "P141";
+NET "ft_data<3>"  LOC= "P140";
+NET "ft_data<4>"  LOC= "P139";
+NET "ft_data<5>"  LOC= "P138";
+NET "ft_data<6>"  LOC= "P137";
+NET "ft_data<7>"  LOC= "P134";
 
-NET "_ft_rxf"    LOC="P133";
-NET "_ft_txe"    LOC="P132"; 
-NET "_ft_rd"     LOC="P131"; 
-NET "_ft_wr"     LOC="P127"; 
-NET "_ft_siwu"   LOC="P126"; 
-NET  "ft_clk"    LOC="P124"; 
-NET "_ft_oe"          LOC="P123"; 
-NET "_ft_reset"       LOC="P121"; 
+NET "_ft_rxf"     LOC= "P133";
+NET "_ft_txe"     LOC= "P132";
+NET "_ft_rd"      LOC= "P131";
+NET "_ft_wr"      LOC= "P127";
+NET "_ft_siwu"    LOC= "P126";
+NET  "ft_clk"     LOC= "P124";
+NET "_ft_oe"      LOC= "P123";
+NET "_ft_reset"   LOC= "P121";
 
-NET "adc_sclk"   LOC="P120";
-NET "adc_mosi"   LOC="P119";
-NET "adc_miso"   LOC="P118";
-NET "_adc_cs"    LOC="P117";
+NET "adc_sclk"    LOC= "P120";
+NET "adc_mosi"    LOC= "P119";
+NET "adc_miso"    LOC= "P118";
+NET "_adc_cs"     LOC= "P117";
 
-NET "ddd_mosi"   LOC="P116";
-NET "ddd_sclk"   LOC="P115";
-NET "ddd_miso"   LOC="P114";
-NET "_ddd_al"    LOC="P112";
+NET "ddd_mosi"    LOC= "P116";
+NET "ddd_sclk"    LOC= "P115";
+NET "ddd_miso"    LOC= "P114";
+NET "_ddd_al"     LOC= "P112";
 
-NET "pulse_en"   LOC="P111"; 
+NET "pulse_en"    LOC= "P111";
 
-NET "mux_a0<15>" LOC="P105";
-NET "mux_a1<15>" LOC="P104";
-NET "mux_a0<13>" LOC="P102";
-NET "mux_a1<13>" LOC="P101";
-NET "mux_a0<11>" LOC="P100";
-NET "mux_a1<11>" LOC="P99";
-NET "mux_a0<9>" LOC="P98";
-NET "mux_a1<9>" LOC="P97";
-NET "mux_a0<7>"  LOC="P95";
-NET "mux_a1<7>"  LOC="P94";
-NET "mux_a0<5>"  LOC="P93";
-NET "mux_a1<5>"  LOC="P92";
-NET "mux_a0<3>"  LOC="P88";
-NET "mux_a1<3>"  LOC="P87";
-NET "mux_a0<1>"  LOC="P85";
-NET "mux_a1<1>"  LOC="P84";
+NET "mux_a0<15>"  LOC= "P105";
+NET "mux_a1<15>"  LOC= "P104";
+NET "mux_a0<13>"  LOC= "P102";
+NET "mux_a1<13>"  LOC= "P101";
+NET "mux_a0<11>"  LOC= "P100";
+NET "mux_a1<11>"  LOC= "P99";
+NET "mux_a0<9>"   LOC= "P98";
+NET "mux_a1<9>"   LOC= "P97";
+NET "mux_a0<7>"   LOC= "P95";
+NET "mux_a1<7>"   LOC= "P94";
+NET "mux_a0<5>"   LOC= "P93";
+NET "mux_a1<5>"   LOC= "P92";
+NET "mux_a0<3>"   LOC= "P88";
+NET "mux_a1<3>"   LOC= "P87";
+NET "mux_a0<1>"   LOC= "P85";
+NET "mux_a1<1>"   LOC= "P84";
 
-NET "mux_a1<0>"  LOC="P35";
-NET "mux_a0<0>"  LOC="P34";
-NET "mux_a1<2>"  LOC="P33";
-NET "mux_a0<2>"  LOC="P32";
-NET "mux_a1<4>"  LOC="P30";
-NET "mux_a0<4>"  LOC="P29";
-NET "mux_a1<6>"  LOC="P27";
-NET "mux_a0<6>"  LOC="P26";
-NET "mux_a1<8>"  LOC="P24";
-NET "mux_a0<8>"  LOC="P23";
-NET "mux_a1<10>" LOC="P22";
-NET "mux_a0<10>" LOC="P21";
-NET "mux_a1<12>" LOC="P17";
-NET "mux_a0<12>" LOC="P16";
-NET "mux_a1<14>" LOC="P15";
-NET "mux_a0<14>" LOC="P14";
+NET "mux_a1<0>"   LOC= "P35";
+NET "mux_a0<0>"   LOC= "P34";
+NET "mux_a1<2>"   LOC= "P33";
+NET "mux_a0<2>"   LOC= "P32";
+NET "mux_a1<4>"   LOC= "P30";
+NET "mux_a0<4>"   LOC= "P29";
+NET "mux_a1<6>"   LOC= "P27";
+NET "mux_a0<6>"   LOC= "P26";
+NET "mux_a1<8>"   LOC= "P24";
+NET "mux_a0<8>"   LOC= "P23";
+NET "mux_a1<10>"  LOC= "P22";
+NET "mux_a0<10>"  LOC= "P21";
+NET "mux_a1<12>"  LOC= "P17";
+NET "mux_a0<12>"  LOC= "P16";
+NET "mux_a1<14>"  LOC= "P15";
+NET "mux_a0<14>"  LOC= "P14";
 
-NET "mux_a0_preV" LOC="P83";
-NET "mux_a1_preV" LOC="P82";
+NET "mux_a0_preV" LOC= "P83";
+NET "mux_a1_preV" LOC= "P82";
 
-NET "mux_a0_nexT" LOC="P11";
-NET "mux_a1_nexT" LOC="P12";
+NET "mux_a0_nexT" LOC= "P11";
+NET "mux_a1_nexT" LOC= "P12";
 
-NET "pdac_din"  LOC="P80"; 
-NET "pdac_sclk"   LOC="P79";
-NET "_pdac_en"  LOC="P78";
+NET "pdac_din"    LOC= "P80";
+NET "pdac_sclk"   LOC= "P79";
+NET "_pdac_en"    LOC= "P78";
 
-NET "compin"  LOC="P61"; 
-NET "compout" LOC="P64";
+NET "compin"      LOC= "P61";
+NET "compout"     LOC= "P64";
 
-NET "pktime<0>" LOC="P55";
-NET "pktime<1>" LOC="P59";
-NET "pktime<2>" LOC="P62"; 
+NET "pktime<0>"   LOC= "P55";
+NET "pktime<1>"   LOC= "P59";
+NET "pktime<2>"   LOC= "P62";
 
-NET "lctrst"  LOC="P58";
-NET "lctclk"  LOC="P40";
-NET "pkmode<0>" LOC="P50";
-NET "pkmode<1>" LOC="P51";
+NET "lctrst"      LOC= "P58";
+NET "lctclk"      LOC= "P40";
+NET "pkmode<0>"   LOC= "P50";
+NET "pkmode<1>"   LOC= "P51";
 
-NET "distrip<0>" LOC="P48";
-NET "distrip<1>" LOC="P47";
-NET "distrip<2>" LOC="P46";
-NET "distrip<3>" LOC="P45";
-NET "distrip<4>" LOC="P44";
-NET "distrip<5>" LOC="P43";
-NET "distrip<6>" LOC="P41";
-NET "distrip<7>" LOC="P38";
+NET "distrip<0>"  LOC= "P48";
+NET "distrip<1>"  LOC= "P47";
+NET "distrip<2>"  LOC= "P46";
+NET "distrip<3>"  LOC= "P45";
+NET "distrip<4>"  LOC= "P44";
+NET "distrip<5>"  LOC= "P43";
+NET "distrip<6>"  LOC= "P41";
+NET "distrip<7>"  LOC= "P38";
 
-NET "pulse_trig" LOC="P9";
+NET "sump"        LOC= "P57"; 
 
-NET "_cdac_en"  LOC="P6";
-NET "cdac_din"  LOC="P5";
-NET "cdac_sclk"   LOC="P2";
+NET "pulse_trig"  LOC= "P9";
+
+NET "_cdac_en"    LOC= "P6";
+NET "cdac_din"    LOC= "P5";
+NET "cdac_sclk"   LOC= "P2";
+
+#INST "ft_clk_IBUFG_BUFG"  LOC="BUFGMUX_X3Y7"; 
+#INST "uclkgen/clkin1_buf" LOC="BUFGMUX_X3Y7";
+#INST "clk60_BUFG"         LOC="BUFGMUX_X3Y7"; 
+#INST "uibufg_clk60" LOC = "BUFGMUX_X3Y7";
+
+NET "ft_clk" CLOCK_DEDICATED_ROUTE = FALSE;

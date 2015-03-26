@@ -14,11 +14,11 @@
     `ifdef  triad_decode_debug
     `define triad_sm_dsp_debug  ,triad_sm_dsp
     `else
-    `define triad_sm_dsp_debug   
+    `define triad_sm_dsp_debug
     `endif
 
 //------------------------------------------------------------------------------------------------------------------------
-`ifdef triad_decode_1srl    
+`ifdef triad_decode_1srl
 //------------------------------------------------------------------------------------------------------------------------
 //
 //  1 SRL version: Fast combinatorial output stage with 1bx flip-flop option, skipped-triad detection, 1-wide pulse capable
@@ -29,7 +29,7 @@
 //      Receives a 3-bit serial triad of time-multiplexed DiStrip/Strip/HStrip data
 //      Outputs 4 half-strip pulses
 //
-//  Programmable persistence output pulses range 1-to-16 bx, 25ns to 400ns  
+//  Programmable persistence output pulses range 1-to-16 bx, 25ns to 400ns
 //
 //  11/30/06    Initial
 //  12/01/06 Add zero-deadtime triad decoder state machine
@@ -76,7 +76,7 @@
 // FF Buffer triad input stream for simulation only, needed for correct simulation of combinatorial fast h_strip output
     `ifdef triad_decode_debug
     initial $display ("triad_decode: Inserting simulation flip-flop on triad input signal !!!!");
-    
+
     reg triad_ff=0;
     always @(posedge clock) begin               // FF triad input stream only for simulation
     triad_ff <= triad;
@@ -154,7 +154,7 @@
     casex ({!busy_hs,adr})
     3'b000: h_strip <= 4'b0001;
     3'b001: h_strip <= 4'b0010;
-    3'b010: h_strip <= 4'b0100; 
+    3'b010: h_strip <= 4'b0100;
     3'b011: h_strip <= 4'b1000;
     3'b1xx: h_strip <= 4'b0000;
     endcase
@@ -190,7 +190,7 @@
 //      Receives a 3-bit serial triad of time-multiplexed DiStrip/Strip/HStrip data
 //      Outputs 4 half-strip pulses
 //
-//  Programmable persistence output pulses range 1-to-16 bx, 25ns to 400ns  
+//  Programmable persistence output pulses range 1-to-16 bx, 25ns to 400ns
 //  A 2nd triad arriving during an hstrip pulse extends the pulse width by restarting its counter
 //
 //  11/30/06    Initial
@@ -225,7 +225,7 @@
 // FF Buffer triad input stream for simulation only, needed for correct simulation of combinatorial fast h_strip output
     `ifdef triad_decode_debug
     initial $display ("triad_decode: Inserting simulation flip-flop on triad input signal !!!!");
-    
+
     reg triad_ff=0;
     always @(posedge clock) begin       // FF triad input stream only for simulation
     triad_ff <= triad;
@@ -250,7 +250,7 @@
 
 // Store strip bit
     reg strip;
-    
+
     always @(posedge clock) begin
     if (triad_sm == lstrip ) strip  <= triad_ff;
     end
@@ -260,14 +260,14 @@
 // hstrip decoder ROM
     reg  [3:0] hs;
     wire [1:0] adr;
-    
+
     assign adr = {strip,hstrip};
 
     always @* begin
     case (adr)
-    2'h0: hs <= 4'b0001; 
-    2'h1: hs <= 4'b0010; 
-    2'h2: hs <= 4'b0100; 
+    2'h0: hs <= 4'b0001;
+    2'h1: hs <= 4'b0010;
+    2'h2: hs <= 4'b0100;
     2'h3: hs <= 4'b1000;
     endcase
     end
@@ -278,14 +278,14 @@
     wire [3:0] busy_hs;
     integer ihs;
 
-    assign busy_hs[0] = width_cnt[0]!=0; 
-    assign busy_hs[1] = width_cnt[1]!=0; 
-    assign busy_hs[2] = width_cnt[2]!=0; 
-    assign busy_hs[3] = width_cnt[3]!=0; 
+    assign busy_hs[0] = width_cnt[0]!=0;
+    assign busy_hs[1] = width_cnt[1]!=0;
+    assign busy_hs[2] = width_cnt[2]!=0;
+    assign busy_hs[3] = width_cnt[3]!=0;
 
 //! assign fire_hs[3:0] = hs[3:0]*(triad_sm==lhstrip);
     assign fire_hs[3:0] = hs[3:0] & {4 {(triad_sm==lhstrip)}};
-    
+
     always @(posedge clock) begin
     ihs=0;
     while (ihs <=3) begin
