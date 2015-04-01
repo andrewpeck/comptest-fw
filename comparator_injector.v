@@ -28,61 +28,16 @@ module comparator_injector(
     input clk
 );
 
-reg [3:0] bx;
-reg [1:0] state;
-reg [1:0] next_state;
-initial
-begin
-    bx                = 3'h0;
-    state             = 2'h0;
-    next_state        = 2'h0;
-    compout_errcnt    = 32'h0;
-    halfstrips_errcnt = 32'h0;
-end
+reg [3:0] bx = 3'h0;
+reg [1:0] state = 2'h0;
+reg [1:0] next_state = 32'h0;
 
 parameter [2:0] idle     = 2'h0;
 parameter [2:0] pulseon  = 2'h1;
 parameter [2:0] pulseoff = 2'h2;
 parameter [2:0] readout  = 2'h3;
 
-always @(*)
-begin
-    case (state)
-        idle:
-        begin
-            if (fire_pulse && bx==0) next_state = pulseon;
-            else next_state = idle;
-        end
-
-        pulseon:
-        begin
-            if (bx==pulse_width) next_state = pulseoff;
-            else next_state = pulseon;
-        end
-
-        pulseoff:
-        begin
-            if (bx==bx_delay) next_state = readout;
-            else next_state = pulseoff;
-        end
-
-        readout:
-            next_state = idle;
-
-        default:
-            next_state = idle;
-
-    endcase
-end
-
-// SEQUENTIAL LOGIC
 always @(posedge clk)
-begin
-    state <= next_state;
-end
-
-// OUTPUT LOGIC
-always @ (posedge clk)
 begin
     if (halfstrips_errcnt_rst)
         halfstrips_errcnt <= 1'b0;
@@ -93,8 +48,12 @@ begin
     case (state)
         idle:
         begin
-            bx <= 1'b0;
+            if (fire_pulse && bx==0)
+                state <= pulseon;
+
+            bx           <= 1'b0;
             pulser_ready <= 1'b1;
+            compin <= 0;
         end
 
         pulseon:
@@ -103,6 +62,9 @@ begin
             pulser_ready <= 1'b0;
             bx <= 4'hF & (bx + 1'b1);
 
+            if (bx==pulse_width)
+                state <= pulseoff;
+
             compin <= (compin_inject) ? 1'b1 : 1'b0;
         end
 
@@ -110,6 +72,9 @@ begin
         begin
             pulse_en <= 1'b0;
             bx       <= 4'hF & (bx + 1'b1);
+
+            if (bx==bx_delay)
+                state <= readout;
         end
 
         readout:
