@@ -58,6 +58,8 @@ module comptest (
     input   compout,
     input   [7:0] distrip,
 
+    input osc40,
+
     output sump
 );
 
@@ -71,15 +73,17 @@ module comptest (
 wire dcm_rst;
 wire dcm_islocked;
 
-//IBUFG CLOCK60 (.I(ft_clk),.O(clk60));
-dcm uclkgen
-(
-    .CLK_IN1(ft_clk), // Clock in ports
-    .CLK_OUT1(clk60), // Clock out ports
-    .CLK_OUT2(clk40), // Clock out ports
-    .RESET(dcm_rst),       // IN
-    .LOCKED(dcm_islocked)
-);
+IBUFG CLOCK60 (.I(ft_clk),.O(clk60));
+IBUFG CLOCK40 (.I(osc40), .O(clk40));
+
+//dcm uclkgen
+//(
+//    .CLK_IN1(ft_clk), // Clock in ports
+//    .CLK_OUT1(clk60), // Clock out ports
+//    .CLK_OUT2(clk40), // Clock out ports
+//    .RESET(dcm_rst),       // IN
+//    .LOCKED(dcm_islocked)
+//);
 
 // Clock forwarding circuit using the double data-rate register
 //        Spartan-3E/3A/6
