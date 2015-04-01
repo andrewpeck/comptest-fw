@@ -11,6 +11,7 @@ module comparator_injector(
 
     input compout,
     input compout_expect,
+    output reg compout_last,
 
     input compout_errcnt_rst,
     input halfstrips_errcnt_rst,
@@ -118,7 +119,14 @@ begin
 
             if (compout!=compout_expect)
                 compout_errcnt <= 32'hFFFFFFFF & (compout_errcnt + 1);
+
+            compout_last <= compout;
+            state <= idle;
         end
+
+        default:
+            state = idle;
+
     endcase
 end
 endmodule

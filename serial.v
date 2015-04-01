@@ -30,6 +30,7 @@ module serial
     output wire        halfstrips_errcnt_rst,
 
     output wire compout_expect,
+    input  wire compout_last,
     input  wire [31:0] compout_errcnt,
     output wire        compout_errcnt_rst,
     output wire        compin_inject,
@@ -159,9 +160,10 @@ assign  triad_persist1           = pulse_ctrl_in [19];
 
 // Read
 wire [31:0] pulse_ctrl_out;
-assign pulse_ctrl_out [13:0]  = pulse_ctrl_in[13:0];
-assign pulse_ctrl_out [14]    = pulser_ready;
-assign pulse_ctrl_out [31:15] = pulse_ctrl_in[31:15];
+assign pulse_ctrl_out [19:0]  = pulse_ctrl_in[19:0];
+assign pulse_ctrl_out [20]    = compout_last;
+assign pulse_ctrl_out [21]    = pulser_ready;
+assign pulse_ctrl_out [31:22] = pulse_ctrl_in[31:22];
 
 //------------------------------------------------------------------------------
 // ADR_MUX1=0x03

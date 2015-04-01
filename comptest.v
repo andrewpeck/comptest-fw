@@ -116,6 +116,7 @@ wire [31:0] halfstrips_errcnt;
 wire [31:0] compout_errcnt;
 
 wire compout_expect;
+wire compout_last;
 wire compout_errcnt_rst;
 wire halfstrips_errcnt_rst;
 wire compin_inject;
@@ -134,6 +135,7 @@ comparator_injector u_comparator_injector (
     .compout_errcnt                       ( compout_errcnt           ),
     .compout                              ( compout                  ),
     .compout_expect                       ( compout_expect           ),
+    .compout_last                         ( compout_last             ),
     .compout_errcnt_rst                   ( compout_errcnt_rst       ),
     .halfstrips_errcnt_rst                ( halfstrips_errcnt_rst    ),
     .compin_inject                        ( compin_inject            ),
@@ -207,6 +209,7 @@ serial u_serial            (
     .halfstrips_errcnt     (  halfstrips_errcnt[31:0] ),
     .halfstrips_errcnt_rst (  halfstrips_errcnt_rst   ),
     .compout_expect        (  compout_expect          ),
+    .compout_last          (  compout_last            ),
     .compout_errcnt        (  compout_errcnt          ),
     .compout_errcnt_rst    (  compout_errcnt_rst      ),
     .compin_inject         (  compin_inject           ),
