@@ -429,13 +429,13 @@ begin
         rd3:
         begin
             ft_byte_in <= dword_out[23:16];
-            if (_ft_rd==0) serialstate <= rd4;   else serialstate <= rd3;
+            if (_ft_rd==0) serialstate <= rd4;
         end
         rd4:
         begin
             _serial_rd    <= 1'b1;
             ft_byte_in    <= dword_out[31:24];
-            if (_ft_rd==0) serialstate <= idle;  else serialstate <= rd4;
+            if (_ft_rd==0) serialstate <= idle;
         end
 
         /* Write */
@@ -444,22 +444,22 @@ begin
             _serial_wr          <= 1'b0;
             _serial_rd          <= 1'b1;
              dword_in    [7:0]  <= ft_byte_out[7:0];
-            if (_ft_wr==0) serialstate <= wr2;   else serialstate <= wr1;
+            if (_ft_wr==0) serialstate <= wr2;
         end
         wr2:
         begin
             dword_in    [15:8]  <= ft_byte_out [7:0];
-            if (_ft_wr==0) serialstate <= wr3;   else serialstate <= wr2;
+            if (_ft_wr==0) serialstate <= wr3;
         end
         wr3:
         begin
             dword_in    [23:16] <= ft_byte_out [7:0];
-            if (_ft_wr==0) serialstate <= wr4;   else serialstate <= wr3;
+            if (_ft_wr==0) serialstate <= wr4;
         end
         wr4:
         begin
             dword_in    [31:24] <= ft_byte_out [7:0];
-            if (_ft_wr==0) serialstate <= wr5;   else serialstate <= wr4;
+            if (_ft_wr==0) serialstate <= wr5;
         end
         wr5:
         begin
