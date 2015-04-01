@@ -74,6 +74,7 @@ NET "pdac_din"    LOC= "P80";
 NET "pdac_sclk"   LOC= "P79";
 NET "_pdac_en"    LOC= "P78";
 
+NET "osc40"       LOC= "P56";
 NET "compin"      LOC= "P61";
 NET "compout"     LOC= "P64";
 
@@ -103,9 +104,19 @@ NET "_cdac_en"    LOC= "P6";
 NET "cdac_din"    LOC= "P5";
 NET "cdac_sclk"   LOC= "P2";
 
-#INST "ft_clk_IBUFG_BUFG"  LOC="BUFGMUX_X3Y7"; 
-#INST "uclkgen/clkin1_buf" LOC="BUFGMUX_X3Y7";
-#INST "clk60_BUFG"         LOC="BUFGMUX_X3Y7"; 
-#INST "uibufg_clk60" LOC = "BUFGMUX_X3Y7";
-
-NET "ft_clk" CLOCK_DEDICATED_ROUTE = FALSE;
+#NET "ft_clk" CLOCK_DEDICATED_ROUTE = FALSE;
+#Created by Constraints Editor (xc6slx4-tqg144-3) - 2015/03/26
+INST "ft_data<0>" TNM = FTDI;
+INST "ft_data<1>" TNM = FTDI;
+INST "ft_data<2>" TNM = FTDI;
+INST "ft_data<3>" TNM = FTDI;
+INST "ft_data<4>" TNM = FTDI;
+INST "ft_data<5>" TNM = FTDI;
+INST "ft_data<6>" TNM = FTDI;
+INST "_ft_rxf" TNM = FTDI;
+INST "_ft_txe" TNM = FTDI;
+INST "_ft_reset" TNM = FTDI;
+NET "ft_clk" TNM_NET = ft_clk;
+TIMESPEC TS_ft_clk = PERIOD "ft_clk" 60 MHz HIGH 50%;
+#Created by Constraints Editor (xc6slx4-tqg144-3) - 2015/03/26
+TIMEGRP "FTDI" OFFSET = IN 8.333 ns VALID 8.333 ns BEFORE "ft_clk" RISING;
