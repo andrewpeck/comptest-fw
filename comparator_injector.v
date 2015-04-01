@@ -1,7 +1,5 @@
 `timescale 1ns / 1ps
 
-// TODO: compin_inject needs to do something.
-
 module comparator_injector(
     input [31:0] halfstrips,
     input [31:0] halfstrips_expect,
@@ -104,6 +102,8 @@ begin
             pulse_en     <= 1'b1;
             pulser_ready <= 1'b0;
             bx <= 4'hF & (bx + 1'b1);
+
+            compin <= (compin_inject) ? 1'b1 : 1'b0;
         end
 
         pulseoff:
