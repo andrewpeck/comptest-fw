@@ -29,6 +29,9 @@ module serial
     input  wire [31:0] halfstrips_errcnt,
     output wire        halfstrips_errcnt_rst,
 
+    input  wire [31:0] thresholds_errcnt,
+    output wire        thresholds_errcnt_rst,
+
     output wire compout_expect,
     input  wire compout_last,
     input  wire [31:0] compout_errcnt,
@@ -39,6 +42,8 @@ module serial
     output wire [2:0] pktime,
     output wire [1:0] pkmode,
     output wire lctrst,
+
+    output wire [31:0] active_strip_mask,
 
     output  wire _cdac_en,
     output  wire cdac_din,
@@ -77,7 +82,7 @@ module serial
 // ADR_COMP_CONFIG=0x01
 //------------------------------------------------------------------------------
 
-parameter ADR_COMP_CONFIG=4'h01;
+parameter ADR_COMP_CONFIG=4'h1;
 // Write
 
 reg [31:0] comp_config_in = 32'h0;
@@ -103,7 +108,7 @@ assign comp_config_out[31:0] = comp_config_in [31:0];
 //------------------------------------------------------------------------------
 // ADR_PULSE_CTRL=0x02
 //------------------------------------------------------------------------------
-parameter ADR_PULSE_CTRL = 4'h02;
+parameter ADR_PULSE_CTRL = 4'h2;
 
 // Write
 reg [31:0] pulse_ctrl_in;
@@ -135,6 +140,8 @@ begin
     pulse_ctrl_in[18:15]        = 1'b0; // triad_persist
     pulse_ctrl_in[19]           = 1'b0; // triad_persist1
 
+    pulse_ctrl_in[23]           = 1'b0; //  thresholds_errcnt_rst
+
     pulse_ctrl_in[31:20]        = 0;
 end
 
@@ -157,6 +164,7 @@ assign  compout_expect           = pulse_ctrl_in[14];
 
 assign  triad_persist            = pulse_ctrl_in [18:15];
 assign  triad_persist1           = pulse_ctrl_in [19];
+assign  thresholds_errcnt_rst    = pulse_ctrl_in [20];
 
 // Read
 wire [31:0] pulse_ctrl_out;
@@ -168,7 +176,7 @@ assign pulse_ctrl_out [31:22] = pulse_ctrl_in[31:22];
 //------------------------------------------------------------------------------
 // ADR_MUX1=0x03
 //------------------------------------------------------------------------------
-parameter ADR_MUX1 = 4'h03;
+parameter ADR_MUX1 = 4'h3;
 
 // Write
 
@@ -188,7 +196,7 @@ assign mux1_out[31:0] = mux1_in[31:0];  // All bits are R/W
 //------------------------------------------------------------------------------
 // ADR_MUX2=0x04
 //------------------------------------------------------------------------------
-parameter ADR_MUX2 = 4'h04;
+parameter ADR_MUX2 = 4'h4;
 
 // Write
 
@@ -236,7 +244,7 @@ assign mux2_out[31:0] = mux2_in[31:0];  // All bits are R/W
 // ADR_HALFSTRIPS=0x05
 //------------------------------------------------------------------------------
 
-parameter ADR_HALFSTRIPS=4'h05;
+parameter ADR_HALFSTRIPS=4'h5;
 
 wire [31:0] halfstrips_out;
 assign halfstrips_out [31:0] = halfstrips [31:0];
@@ -245,7 +253,7 @@ assign halfstrips_out [31:0] = halfstrips [31:0];
 // ADR_HALFSTRIPS_EXPECT=0x06
 //------------------------------------------------------------------------------
 
-parameter ADR_HALFSTRIPS_EXPECT=4'h06;
+parameter ADR_HALFSTRIPS_EXPECT=4'h6;
 
 reg [31:0] halfstrips_expect_in;
 initial
@@ -258,27 +266,46 @@ assign halfstrips_expect     [31:0] = halfstrips_expect_in [31:0];
 assign halfstrips_expect_out [31:0] = halfstrips_expect    [31:0];
 
 //------------------------------------------------------------------------------
-// ADR_HALFSTRIPS_ERRCNT=0x07
+// ADR_ACTIVE_STRIP_MASK=0xC
 //------------------------------------------------------------------------------
 
-parameter ADR_HALFSTRIPS_ERRCNT=4'h07;
+parameter ADR_ACTIVE_STRIP_MASK = 4'hC;
+reg [31:0] active_strip_mask_in = 32'b0;
+wire [31:0] active_strip_mask_out;
+
+assign active_strip_mask [31:0]     = active_strip_mask_in [31:0];
+assign active_strip_mask_out [31:0] = active_strip_mask [31:0];
+
+//------------------------------------------------------------------------------
+// ADR_HALFSTRIPS_ERRCNT=0x7
+//------------------------------------------------------------------------------
+
+parameter ADR_HALFSTRIPS_ERRCNT=4'h7;
 
 wire [31:0] halfstrips_errcnt_out;
 assign halfstrips_errcnt_out [31:0] = halfstrips_errcnt [31:0];
 
 //------------------------------------------------------------------------------
-// ADR_COMPOUT_ERRCNT=0x0A
+// ADR_COMPOUT_ERRCNT=0xA
 //------------------------------------------------------------------------------
 
-parameter ADR_COMPOUT_ERRCNT = 4'h0A;
+parameter ADR_COMPOUT_ERRCNT = 4'hA;
 wire [31:0] compout_errcnt_out;
 assign compout_errcnt_out [31:0] = compout_errcnt [31:0];
 
 //------------------------------------------------------------------------------
-// ADR_ADC=0x08
+// ADR_THRESHOLDS_ERRCNT=0xB
 //------------------------------------------------------------------------------
 
-parameter ADR_ADC = 4'h08;
+parameter ADR_THRESHOLDS_ERRCNT = 4'hB;
+wire [31:0] thresholds_errcnt_out;
+assign thresholds_errcnt_out [31:0] = thresholds_errcnt [31:0];
+
+//------------------------------------------------------------------------------
+// ADR_ADC=0x8
+//------------------------------------------------------------------------------
+
+parameter ADR_ADC = 4'h8;
 
 // Write
 reg  [31:0] adc_in;
@@ -307,9 +334,9 @@ assign adc_out[3] =  adc_miso;     // R
 assign adc_out[31:4]  =  adc_in[31:4];    // Unused
 
 //------------------------------------------------------------------------------
-// ADR_DDD=0x09
+// ADR_DDD=0x9
 //------------------------------------------------------------------------------
-parameter ADR_DDD = 4'h09;
+parameter ADR_DDD = 4'h9;
 
 // Write
 
@@ -489,9 +516,11 @@ begin
         ADR_HALFSTRIPS:          dword_out  = halfstrips_out;
         ADR_HALFSTRIPS_EXPECT:   dword_out  = halfstrips_expect_out;
         ADR_HALFSTRIPS_ERRCNT:   dword_out  = halfstrips_errcnt_out;
+		ADR_THRESHOLDS_ERRCNT:   dword_out  = thresholds_errcnt_out;
         ADR_COMPOUT_ERRCNT:      dword_out  = compout_errcnt_out;
         ADR_ADC:                 dword_out  = adc_out;
         ADR_DDD:                 dword_out  = ddd_out;
+        ADR_ACTIVE_STRIP_MASK:   dword_out  = active_strip_mask_out;
         default:                 dword_out  = 32'hDEADBEEF;
     endcase
 end
@@ -505,6 +534,7 @@ wire wr_mux2              = (adr==ADR_MUX2)              && (update_serial);
 wire wr_halfstrips_expect = (adr==ADR_HALFSTRIPS_EXPECT) && (update_serial);
 wire wr_adc               = (adr==ADR_ADC)               && (update_serial);
 wire wr_ddd               = (adr==ADR_DDD)               && (update_serial);
+wire wr_active_strip_mask = (adr==ADR_ACTIVE_STRIP_MASK) && (update_serial);
 
 always @ (posedge clk)
 begin
@@ -515,6 +545,7 @@ begin
     if (wr_halfstrips_expect) halfstrips_expect_in <= dword_in;
     if (wr_adc)               adc_in               <= dword_in;
     if (wr_ddd)               ddd_in               <= dword_in;
+    if (wr_active_strip_mask) active_strip_mask_in <= dword_in;
 end
 
 assign serial_sump = !(adc_in[31:3] | ddd_in [31:3] | mux1_in[31:4] | pulse_ctrl_in[31:15] | comp_config_in [31:9]);

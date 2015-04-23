@@ -118,6 +118,7 @@ wire [31:0] halfstrips_expect;
 
 wire [31:0] halfstrips_errcnt;
 wire [31:0] compout_errcnt;
+wire [31:0] thresholds_errcnt;
 
 wire compout_expect;
 wire compout_last;
@@ -132,16 +133,21 @@ wire [3:0] pulse_width;
 
 wire fire_pulse;
 
+wire [31:0] active_strip_mask;
+
 comparator_injector u_comparator_injector (
     .halfstrips                           ( halfstrips[31:0]         ),
     .halfstrips_expect                    ( halfstrips_expect[31:0]  ),
     .halfstrips_errcnt                    ( halfstrips_errcnt[31:0]  ),
+    .thresholds_errcnt                    ( thresholds_errcnt[31:0]  ),
     .compout_errcnt                       ( compout_errcnt           ),
     .compout                              ( compout                  ),
     .compout_expect                       ( compout_expect           ),
     .compout_last                         ( compout_last             ),
+    .active_strip_mask                    ( active_strip_mask        ),
     .compout_errcnt_rst                   ( compout_errcnt_rst       ),
     .halfstrips_errcnt_rst                ( halfstrips_errcnt_rst    ),
+    .thresholds_errcnt_rst                ( thresholds_errcnt_rst    ),
     .compin_inject                        ( compin_inject            ),
     .compin                               ( compin                   ),
     .fire_pulse                           ( fire_pulse               ),
@@ -190,6 +196,7 @@ ft245 u_ft245 (
 
 wire triad_perist1;
 wire [3:0] triad_persist;
+
 // Instantiate the module
 serial u_serial            (
     .adc_sclk              (  adc_sclk                ),
@@ -210,12 +217,19 @@ serial u_serial            (
 
     .halfstrips            (  halfstrips[31:0]        ),
     .halfstrips_expect     (  halfstrips_expect[31:0] ),
+
     .halfstrips_errcnt     (  halfstrips_errcnt[31:0] ),
     .halfstrips_errcnt_rst (  halfstrips_errcnt_rst   ),
+
+    .thresholds_errcnt     ( thresholds_errcnt[31:0]  ),
+    .thresholds_errcnt_rst ( thresholds_errcnt_rst    ),
+
     .compout_expect        (  compout_expect          ),
     .compout_last          (  compout_last            ),
+
     .compout_errcnt        (  compout_errcnt          ),
     .compout_errcnt_rst    (  compout_errcnt_rst      ),
+
     .compin_inject         (  compin_inject           ),
 
     .pktime                (  pktime[2:0]             ),
@@ -225,6 +239,7 @@ serial u_serial            (
     ._cdac_en              ( _cdac_en                 ),
     .cdac_din              (  cdac_din                ),
     .cdac_sclk             (  cdac_sclk               ),
+    .active_strip_mask     (  active_strip_mask       ),
 
     .mux_a0                (  mux_a0[15:0]            ),
     .mux_a1                (  mux_a1[15:0]            ),

@@ -4,15 +4,18 @@ module comparator_injector(
     input [31:0] halfstrips,
     input [31:0] halfstrips_expect,
 
+    output reg [31:0] thresholds_errcnt,
     output reg [31:0] halfstrips_errcnt,
     output reg [31:0] compout_errcnt,
 
     input compout,
     input compout_expect,
     output reg compout_last,
+	input [31:0] active_strip_mask,
 
     input compout_errcnt_rst,
     input halfstrips_errcnt_rst,
+    input thresholds_errcnt_rst,
 
     input compin_inject,
     output reg compin,
@@ -45,6 +48,9 @@ begin
     if (compout_errcnt_rst)
         compout_errcnt <= 1'b0;
 
+    if (thresholds_errcnt_rst)
+        thresholds_errcnt <= 1'b0;
+
     case (state)
         idle:
         begin
@@ -53,7 +59,7 @@ begin
 
             bx           <= 1'b0;
             pulser_ready <= 1'b1;
-            compin <= 0;
+            compin <= 1'b0;
         end
 
         pulseon:
@@ -79,11 +85,14 @@ begin
 
         readout:
         begin
+            if ((halfstrips & active_strip_mask)==0)
+                thresholds_errcnt <= 32'hFFFFFFFF & (thresholds_errcnt + 1);
+
             if (halfstrips!=halfstrips_expect)
                 halfstrips_errcnt <= 32'hFFFFFFFF & (halfstrips_errcnt + 1);
 
             if (compout!=compout_expect)
-                compout_errcnt <= 32'hFFFFFFFF & (compout_errcnt + 1);
+                compout_errcnt    <= 32'hFFFFFFFF & (compout_errcnt + 1);
 
             compout_last <= compout;
             state <= idle;
