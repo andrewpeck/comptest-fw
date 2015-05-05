@@ -74,9 +74,7 @@ module serial
     output reg   _serial_rd,
 
     input wire  [7:0] ft_byte_out,
-    output reg  [7:0] ft_byte_in,
-
-    output wire serial_sump
+    output reg  [7:0] ft_byte_in
 );
 
 //------------------------------------------------------------------------------
@@ -407,6 +405,7 @@ parameter wr2  = 4'h6;
 parameter wr3  = 4'h7;
 parameter wr4  = 4'h8;
 parameter wr5  = 4'h9;
+parameter cmdstate = 4'hA;
 
 reg [3:0] serialstate = 4'h0;
 reg update_serial = 1'b0;
@@ -466,25 +465,47 @@ begin
         begin
             // Seq
             _serial_wr  <= 1'b1;
-            _serial_rd  <= 1'b0;
+            _serial_rd  <= 1'b1;
             ft_byte_in  <= 8'h0;
-            adr         <= ft_byte_out[7:4];
 
             // Combo
             if(!_ft_rxf)
             begin
-                if (ft_byte_out[3:0]==PC_READ_CMD)
-                    serialstate <= rd1;
-                else if (ft_byte_out[3:0]==PC_WRITE_CMD)
-                    serialstate <= wr1;
-                else
-                    serialstate <= idle;
+                _serial_rd  <= 1'b0;
+                serialstate <= cmdstate;
             end
             else
                 serialstate <= idle;
         end
 
-        /* Read */
+        /* Parses Command Byte */
+        cmdstate:
+        begin
+
+            adr <= ft_byte_out[7:4];
+
+            if (ft_byte_out[3:0]==PC_READ_CMD) // Data to PC
+            begin
+                _serial_wr  <= 1'b0;
+                _serial_rd  <= 1'b1;
+                serialstate <= wr1;
+            end
+            else if (ft_byte_out[3:0]==PC_WRITE_CMD) // Data from PC
+            begin
+                _serial_wr  <= 1'b1;
+                _serial_rd  <= 1'b0;
+                serialstate <= rd1;
+            end
+            else
+            begin
+                _serial_wr  <= 1'b1;
+                _serial_rd  <= 1'b1;
+                serialstate <= idle;
+            end
+        end
+
+
+        /* Read (from PC)*/
         rd1:
         begin
             // Seq
@@ -513,7 +534,7 @@ begin
             if (_ft_rd==0) serialstate <= idle;
         end
 
-        /* Write */
+        /* Write (to PC)*/
         wr1: begin
              update_serial      <= 1'b0;
             _serial_wr          <= 1'b0;
@@ -595,8 +616,6 @@ begin
     if (wr_ddd)               ddd_in               <= dword_in;
     if (wr_active_strip_mask) active_strip_mask_in <= dword_in;
 end
-
-assign serial_sump = !(adc_in[31:3] | ddd_in [31:3] | mux1_in[31:4] | pulse_ctrl_in[31:15] | comp_config_in [31:9]);
 
 `endif
 
