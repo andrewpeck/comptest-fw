@@ -47,7 +47,7 @@ module ft245
 );
 
 // data Should Float When TXE# is high
-assign data = (!_txe) ? data_to_pc : 7'bz;
+assign data = (!_txe) ? data_to_pc : 8'bz;
 
 parameter [2:0]
 Idle         = 3'h0,
