@@ -73,6 +73,8 @@ module comptest (
 wire dcm_rst;
 wire dcm_islocked;
 
+assign _ft_siwu = 1'b1;
+
 IBUFG CLOCK60 (.I(ft_clk),.O(clk60));
 IBUFG CLOCK40 (.I(osc40), .O(clk40));
 
