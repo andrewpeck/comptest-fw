@@ -408,7 +408,7 @@ parameter wr4  = 4'h8;
 parameter wr5  = 4'h9;
 
 reg [3:0] serialstate = 4'h0;
-reg update_serial = 4'h0;
+reg update_serial = 1'b0;
 
 always @ (posedge clk)
 begin

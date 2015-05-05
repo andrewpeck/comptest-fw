@@ -58,9 +58,8 @@ module comptest (
     input   compout,
     input   [7:0] distrip,
 
-    input osc40,
+    input osc40
 
-    output sump
 );
 
 /*
@@ -264,10 +263,8 @@ serial u_serial            (
     ._ft_wr                (_ft_wr                    ),
     ._ft_rd                (_ft_rd                    ),
     .ft_byte_out           ( ft_byte_out              ),
-    .ft_byte_in            ( ft_byte_in               ),
-    .serial_sump           ( serial_sump              ));
+    .ft_byte_in            ( ft_byte_in               ));
 
-assign sump = serial_sump;
 
 
 /*

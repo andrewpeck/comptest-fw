@@ -96,8 +96,6 @@ NET "distrip<5>"  LOC= "P43";
 NET "distrip<6>"  LOC= "P41";
 NET "distrip<7>"  LOC= "P38";
 
-NET "sump"        LOC= "P57"; 
-
 NET "pulse_trig"  LOC= "P9";
 
 NET "_cdac_en"    LOC= "P6";
