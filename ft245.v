@@ -67,84 +67,56 @@ begin
     data_to_fpga[7:0] = 8'b0;
 end
 
-// Combinatorial Block
-always @(*) begin
-    case(ftstate)
+always @(posedge clk) begin
+
+    ftstate <= next_ftstate;
+
+    case (ftstate)
         Idle :
         begin
+
+            _rd <= 1'b1;
+            _oe <= 1'b1;
+            _wr <= 1'b1;
+
             if (_write_data==0 && _txe==0)
-                next_ftstate <= Next_isWrite;
+                next_ftstate <= Write;
             else if (_read_data==0 && _rxf==0)
                 next_ftstate <= Next_isRead;
             else
                 next_ftstate <= Idle;
         end
 
-        Next_isWrite:
-            next_ftstate <= Write;
-
         Write:
-            next_ftstate <= (_write_data==0 && _txe==0) ? Write : Idle;
-            //next_ftstate <= (_write_data==0 && _txe==0 && _read_data==1) ? Write : Idle;
-
-        Next_isRead:
-            next_ftstate <= Read;
-
-        Read:
-            next_ftstate <= Idle;
-            // put here a mode to stay in read mode if more data is available ?
-
-        default:
-            next_ftstate <= Idle;
-    endcase
-end
-
-// Sequential Block
-always @(posedge clk) begin
-    ftstate <= next_ftstate;
-end
-
-//Sequential Output Block
-always @(posedge clk) begin
-    case(ftstate)
-        Idle :
-        begin
-            _rd <= 1'b1;
-            _oe <= 1'b1;
-            _wr <= 1'b1;
-        end
-
-        Next_isWrite :
-        begin
-            _rd <= 1'b1;
-            _oe <= 1'b1;
-            _wr <= 1'b1;
-        end
-
-        Write :
         begin
             _rd <= 1'b1;
             _oe <= 1'b1;
             _wr <= 1'b0; // (!_txe && _write_data) ? 1'b0 : 1'b1;
             // the wr low can be used to trigger that the next byte is load
             // into data_to_pc
+            next_ftstate <= Idle;
+            //next_ftstate <= (_write_data==0 && _txe==0) ? Write : Idle;
+            //next_ftstate <= (_write_data==0 && _txe==0 && _read_data==1) ? Write : Idle;
         end
 
-        Next_isRead :
+        Next_isRead:
         begin
             // We do this here since we need to drive OE# low at least one
             // clock period before driving RD# low.
             _rd <= 1'b1;
             _oe <= 1'b0;
             _wr <= 1'b1;
+            next_ftstate <= Read;
         end
 
-        Read :
+        Read:
         begin
             data_to_fpga <= data;
             _oe <= 1'b0;
             _wr <= 1'b1;
             _rd <= 1'b0; //(!_rxf) ? 1'b0 : 1'b1;
+            next_ftstate <= Idle;
+            // put here a mode to stay in read mode if more data is available ?
         end
 
         default:
@@ -153,8 +125,8 @@ always @(posedge clk) begin
             _oe <= 1'b1;
             _wr <= 1'b1;
             data_to_fpga <= 8'h00;
+            next_ftstate <= Idle;
         end
-
     endcase
 end
 endmodule
