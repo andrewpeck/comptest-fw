@@ -376,8 +376,8 @@ assign ddd_out[31:4] =  ddd_in [31:4];
 // Readout of FTDI Chip
 //------------------------------------------------------------------------------
 
-parameter READ_CMD  = 4'hA;
-parameter WRITE_CMD = 4'h5;
+parameter PC_READ_CMD  = 4'hA;
+parameter PC_WRITE_CMD = 4'h5;
 
 reg[31:0] dword_out;
 reg[3:0] ibyte;
@@ -443,9 +443,9 @@ begin
     end
     else if (!_ft_txe)
     begin
-        if (ft_byte_out[3:0]==READ_CMD) // Data to PC
+        if (ft_byte_out[3:0]==PC_READ_CMD) // Data to PC
             ft_byte_in <= 8'hAA;
-        if (ft_byte_out[3:0]==WRITE_CMD) // Data to PC
+        if (ft_byte_out[3:0]==PC_WRITE_CMD) // Data to PC
             ft_byte_in <= 8'h55;
 
         _serial_wr <= 1'b0;
@@ -473,9 +473,9 @@ begin
             // Combo
             if(!_ft_rxf)
             begin
-                if (ft_byte_out[3:0]==READ_CMD)
+                if (ft_byte_out[3:0]==PC_READ_CMD)
                     serialstate <= rd1;
-                else if (ft_byte_out[3:0]==WRITE_CMD)
+                else if (ft_byte_out[3:0]==PC_WRITE_CMD)
                     serialstate <= wr1;
                 else
                     serialstate <= idle;
