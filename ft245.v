@@ -59,6 +59,14 @@ Read         = 3'h4;
 reg [2:0] ftstate;
 reg [2:0] next_ftstate;
 
+initial
+begin
+    _oe               = 1'b1;
+    _wr               = 1'b1;
+    _rd               = 1'b1;
+    data_to_fpga[7:0] = 8'b0;
+end
+
 // Combinatorial Block
 always @(*) begin
     case(ftstate)
