@@ -8,7 +8,7 @@ module comptest (
     output ddd_sclk,
 
     // Serial Interface
-    input  _ft_reset,
+    output _ft_reset,
     output _ft_oe,
     input  _ft_txe,
     input  _ft_rxf,
@@ -62,6 +62,7 @@ module comptest (
 
 );
 
+
 /*
  * Inter-module connections
  */
@@ -72,7 +73,8 @@ module comptest (
 wire dcm_rst;
 wire dcm_islocked;
 
-assign _ft_siwu = 1'b1;
+assign _ft_siwu  = 1'b1;
+assign _ft_reset = 1'b1;
 
 IBUFG CLOCK60 (.I(ft_clk),.O(clk60));
 IBUFG CLOCK40 (.I(osc40), .O(clk40));
@@ -179,7 +181,7 @@ ft245 u_ft245 (
     ._wr          (_ft_wr       ), // Write must be low to write to usb
 
     ._oe          (_ft_oe       ), // Output enable, high to write to USB
-    ._reset       (_ft_reset    ), // FTDI Reset, active low
+    //._reset       (_ft_reset    ), // FTDI Reset, active low
 
     .data         ( ft_data     ), // Bidirectional FIFO data
 
@@ -254,7 +256,6 @@ serial u_serial            (
     .ddd_miso              (  ddd_miso                ),
     .ddd_sclk              (  ddd_sclk                ),
 
-    ._reset                (_ft_reset                 ),
     .clk                   ( clk60                    ),
     ._serial_wr            (_serial_wr                ),
     ._serial_rd            (_serial_rd                ),

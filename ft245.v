@@ -35,7 +35,7 @@ module ft245
     // allow for data buffer turn-around.
     output reg _oe,                // Output enable, high to write to USB
 
-    input      _reset,             // low for reset
+    //input      _reset,             // low for reset
 
     inout [7:0] data,              // Bidirectional FIFO data
 
@@ -93,10 +93,7 @@ end
 
 // Sequential Block
 always @(posedge clk) begin
-    if (_reset==0)
-        ftstate <= Idle;
-    else
-        ftstate <= next_ftstate;
+    ftstate <= next_ftstate;
 end
 
 //Sequential Output Block

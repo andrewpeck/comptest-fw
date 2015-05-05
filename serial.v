@@ -64,7 +64,6 @@ module serial
     input  wire  ddd_miso,
     output wire  ddd_sclk,
 
-    input  wire  _reset,
     input  wire  _ft_rxf,
     input  wire  _ft_txe,
     input  wire   clk,
