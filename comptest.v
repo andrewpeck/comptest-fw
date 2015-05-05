@@ -260,6 +260,7 @@ serial u_serial            (
     ._serial_rd            (_serial_rd                ),
 
     ._ft_rxf               (_ft_rxf                   ),
+    ._ft_txe               (_ft_txe                   ),
     ._ft_wr                (_ft_wr                    ),
     ._ft_rd                (_ft_rd                    ),
     .ft_byte_out           ( ft_byte_out              ),

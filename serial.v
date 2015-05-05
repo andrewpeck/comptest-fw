@@ -66,6 +66,7 @@ module serial
 
     input  wire  _reset,
     input  wire  _ft_rxf,
+    input  wire  _ft_txe,
     input  wire   clk,
     input  wire  _ft_rd,
     input  wire  _ft_wr,
@@ -410,6 +411,53 @@ parameter wr5  = 4'h9;
 reg [3:0] serialstate = 4'h0;
 reg update_serial = 1'b0;
 
+`ifdef LOOPBACK
+always @ (posedge clk)
+begin
+    if (!_ft_rxf)
+    begin
+        _serial_wr <= 1'b1;
+        _serial_rd  <= 1'b0;
+    end
+    else if (!_ft_txe)
+    begin
+        ft_byte_in <= ft_byte_out;
+        _serial_wr <= 1'b0;
+        _serial_rd  <= 1'b1;
+    end
+    else
+    begin
+        _serial_wr <= 1'b1;
+        _serial_rd  <= 1'b1;
+    end
+end
+
+`elsif FIXED_OUTPUT
+
+always @ (posedge clk)
+begin
+    if (!_ft_rxf)
+    begin
+        _serial_wr <= 1'b1;
+        _serial_rd  <= 1'b0;
+    end
+    else if (!_ft_txe)
+    begin
+        if (ft_byte_out[3:0]==READ_CMD) // Data to PC
+            ft_byte_in <= 8'hAA;
+        if (ft_byte_out[3:0]==WRITE_CMD) // Data to PC
+            ft_byte_in <= 8'h55;
+
+        _serial_wr <= 1'b0;
+        _serial_rd  <= 1'b1;
+    end
+    else
+        _serial_wr <= 1'b1;
+        _serial_rd  <= 1'b1;
+end
+
+`else
+
 always @ (posedge clk)
 begin
     case (serialstate)
@@ -549,5 +597,7 @@ begin
 end
 
 assign serial_sump = !(adc_in[31:3] | ddd_in [31:3] | mux1_in[31:4] | pulse_ctrl_in[31:15] | comp_config_in [31:9]);
+
+`endif
 
 endmodule
