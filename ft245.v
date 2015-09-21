@@ -39,94 +39,50 @@ module ft245
 
     inout [7:0] data,              // Bidirectional FIFO data
 
-    input   _write_data,           // put low if you want to write data
-    input   _read_data,            // put low if you want to read data
+    input   write_data,           // put high if you want to write data
+    input   read_data,            // put high if you want to read data
 
-    input   [7:0]     data_to_pc,  // Input Register Buffer
-    output  reg [7:0] data_to_fpga // Output Register Buffer
+    input       [7:0]     data_to_pc,  // Input Register Buffer
+    output  reg [7:0]     data_to_fpga // Output Register Buffer
 );
 
-// data Should Float When TXE# is high
-assign data = (!_txe) ? data_to_pc : 8'bz;
-
-parameter [2:0]
-Idle         = 3'h0,
-Next_isWrite = 3'h1,
-Write        = 3'h2,
-Next_isRead  = 3'h3,
-Read         = 3'h4;
-
-reg [2:0] ftstate;
-reg [2:0] next_ftstate;
+// data Should Float When writing out
+assign data = (!_wr) ? data_to_pc : 8'bz;
 
 initial
 begin
     _oe               = 1'b1;
     _wr               = 1'b1;
     _rd               = 1'b1;
-    data_to_fpga[7:0] = 8'b0;
+    data_to_fpga[7:0] = 8'hBA;
 end
+
+wire can_write_data = (write_data && !_txe);
+wire can_read_data  = (read_data && !_rxf);
+
+assign _wr = (ftstate==Write) ? 1'b0 : 1'b1;
+assign _oe = (ftstage==Read)  ? 1'b0 : 1'b1;
 
 always @(posedge clk) begin
+    data_to_fpga <= (ft_state==Read) ? data : data_to_fpga;
+end
 
-    ftstate <= next_ftstate;
+parameter [2:0]
+Idle         = 3'h0,
+Write        = 3'h2,
+Next_isRead  = 3'h3,
+Read         = 3'h4;
 
+reg [2:0] ftstate;
+
+always @(posedge clk) begin
     case (ftstate)
-        Idle :
-        begin
-
-            _rd <= 1'b1;
-            _oe <= 1'b1;
-            _wr <= 1'b1;
-
-            if (_write_data==0 && _txe==0)
-                next_ftstate <= Write;
-            else if (_read_data==0 && _rxf==0)
-                next_ftstate <= Next_isRead;
-            else
-                next_ftstate <= Idle;
-        end
-
-        Write:
-        begin
-            _rd <= 1'b1;
-            _oe <= 1'b1;
-            _wr <= 1'b0; // (!_txe && _write_data) ? 1'b0 : 1'b1;
-            // the wr low can be used to trigger that the next byte is load
-            // into data_to_pc
-            next_ftstate <= Idle;
-            //next_ftstate <= (_write_data==0 && _txe==0) ? Write : Idle;
-            //next_ftstate <= (_write_data==0 && _txe==0 && _read_data==1) ? Write : Idle;
-        end
-
-        Next_isRead:
-        begin
-            // We do this here since we need to drive OE# low at least one
-            // clock period before driving RD# low.
-            _rd <= 1'b1;
-            _oe <= 1'b0;
-            _wr <= 1'b1;
-            next_ftstate <= Read;
-        end
-
-        Read:
-        begin
-            data_to_fpga <= data;
-            _oe <= 1'b0;
-            _wr <= 1'b1;
-            _rd <= 1'b0; //(!_rxf) ? 1'b0 : 1'b1;
-            next_ftstate <= Idle;
-            // put here a mode to stay in read mode if more data is available ?
-        end
-
-        default:
-        begin
-            _rd <= 1'b1;
-            _oe <= 1'b1;
-            _wr <= 1'b1;
-            data_to_fpga <= 8'h00;
-            next_ftstate <= Idle;
-        end
+        Idle:  ftstate <= can_read_data ? (Read) : (can_write_data ? Write : Idle);
+        Write: ftstate <= (write_data) ? Write : Idle; // data_to_pc
+        Read:  ftstate <= (read_data) ? Read : Idle;
     endcase
 end
+
+//----------------------------------------------------------------------------------------------------------------------
 endmodule
+//----------------------------------------------------------------------------------------------------------------------

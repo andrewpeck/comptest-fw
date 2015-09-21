@@ -1,7 +1,5 @@
 `timescale 1ns / 1ps
 
-///////////////////////////////////////////////////////////////////////////////
-
 module serial
 (
     // ADC Control
@@ -10,12 +8,17 @@ module serial
     output wire  adc_mosi,
     input  wire  adc_miso,
 
-    // Pulse Control
-    output wire _pdac_en,
-    output wire  pdac_din,
-    output wire  pdac_sclk,
+    // Dac Control
 
-    output wire [2:0] bx_delay,
+    output wire         pdac_update,
+    output wire  [13:0] pdac_data,
+
+    output wire         cdac_update,
+    output wire  [13:0] cdac_data,
+
+    // Pulse Control
+
+    output wire [3:0] bx_delay,
     output wire [3:0] pulse_width,
     output wire       fire_pulse,
     input  wire       pulser_ready,
@@ -32,8 +35,8 @@ module serial
     input  wire [31:0] thresholds_errcnt,
     output wire        thresholds_errcnt_rst,
 
-    output wire compout_expect,
-    input  wire compout_last,
+    output wire        compout_expect,
+    input  wire        compout_ff,
     input  wire [31:0] compout_errcnt,
     output wire        compout_errcnt_rst,
     output wire        compin_inject,
@@ -41,13 +44,10 @@ module serial
     // Comparator Config
     output wire [2:0] pktime,
     output wire [1:0] pkmode,
-    output wire lctrst,
+    output wire       lctrst,
 
     output wire [31:0] active_strip_mask,
 
-    output  wire _cdac_en,
-    output  wire cdac_din,
-    output  wire cdac_sclk,
 
     // Mux Ctrl
     output wire [15:0] mux_a0,
@@ -69,18 +69,28 @@ module serial
     input  wire   clk,
     input  wire  _ft_rd,
     input  wire  _ft_wr,
-    output reg   _serial_wr,
-    output reg   _serial_rd,
 
-    input wire  [7:0] ft_byte_out,
-    output reg  [7:0] ft_byte_in
+    output _ft_siwu,
+    output  serial_wr,
+    output  serial_rd,
+
+    input   [7:0] ft_byte_out,
+    output  [7:0] ft_byte_in
 );
+//------------------------------------------------------------------------------
+// ADR_LOOPBACK=0x0
+//------------------------------------------------------------------------------
+
+parameter ADR_LOOPBACK=8'h0;
+
+reg  [31:0] loopback_in = 32'h0;
+wire [31:0] loopback_out = loopback_in;
 
 //------------------------------------------------------------------------------
-// ADR_COMP_CONFIG=0x01
+// ADR_COMP_CONFIG=0x1
 //------------------------------------------------------------------------------
 
-parameter ADR_COMP_CONFIG=4'h1;
+parameter ADR_COMP_CONFIG=8'h1;
 // Write
 
 reg [31:0] comp_config_in = 32'h0;
@@ -94,9 +104,6 @@ assign  pkmode[1] = comp_config_in[4];
 
 assign  lctrst    = comp_config_in[5];
 
-assign _cdac_en   = comp_config_in[6];
-assign  cdac_din  = comp_config_in[7];
-assign  cdac_sclk = comp_config_in[8];
 
 // Read
 
@@ -104,9 +111,61 @@ wire [31:0] comp_config_out;
 assign comp_config_out[31:0] = comp_config_in [31:0];
 
 //------------------------------------------------------------------------------
+// ADR_FIRE_PULSE=0xD
+//------------------------------------------------------------------------------
+
+parameter ADR_FIRE_PULSE = 8'hD;
+reg  [31:0] fire_pulse_in = 32'b0;
+wire [31:0] fire_pulse_out = fire_pulse_in;
+
+assign  fire_pulse              = fire_pulse_in[0];
+assign  halfstrips_errcnt_rst   = fire_pulse_in[1];
+assign  compout_errcnt_rst      = fire_pulse_in[2];
+assign  thresholds_errcnt_rst   = fire_pulse_in[3];
+
+//------------------------------------------------------------------------------
+// ADR_DAC=0xD
+//------------------------------------------------------------------------------
+
+parameter ADR_DAC = 8'hD;
+reg[31:0] dac_in = 32'b0;
+
+assign pdac     = dac_in[0];
+assign pdac_data[13:0] = dac_in[14:1];
+assign cdac     = dac_in[15];
+assign cdac_data[13:0] = dac_in[29:16];
+
+wire [31:0] dac_out = dac_in; // write only
+
+////------------------------------------------------------------------------------
+//// ADR_DAC=0xD1
+////------------------------------------------------------------------------------
+//
+//initial
+//begin
+//dac_in[0]            = 1'b1; // _pulsedac_en
+//dac_in[1]            = 1'b0; //  pulsedac_din
+//dac_in[2]            = 1'b0; // _pulsedac_sclk
+//
+//dac_in[3]            = 1'b1; // _cdac_en
+//dac_in[4]            = 1'b0; //  cdac_din
+//dac_in[5]            = 1'b0; // _cdac_sclk
+//end
+//
+//assign _pdac_en                 = dac_in[0];
+//assign  pdac_din                = dac_in[1];
+//assign  pdac_sclk               = dac_in[2];
+//
+//assign _cdac_en   = dac_in[3];
+//assign  cdac_din  = dac_in[4];
+//assign  cdac_sclk = dac_in[5];
+//
+//wire [31:0] dac_out = dac_in;
+
+//------------------------------------------------------------------------------
 // ADR_PULSE_CTRL=0x02
 //------------------------------------------------------------------------------
-parameter ADR_PULSE_CTRL = 4'h2;
+parameter ADR_PULSE_CTRL = 8'h2;
 
 // Write
 reg [31:0] pulse_ctrl_in;
@@ -120,61 +179,55 @@ begin
     pulse_ctrl_in[3]            = 1'b0; //  pulse_width [2]
     pulse_ctrl_in[4]            = 1'b0; //  pulse_width [3]
 
-    pulse_ctrl_in[5]            = 1'b1; // _pulsedac_en
-    pulse_ctrl_in[6]            = 1'b0; //  pulsedac_din
-    pulse_ctrl_in[7]            = 1'b0; // _pulsedac_sclk
+    pulse_ctrl_in[5]            = 1'b1;
+    pulse_ctrl_in[6]            = 1'b0;
+    pulse_ctrl_in[7]            = 1'b0;
 
-    pulse_ctrl_in[8]            = 1'b0; //  halfstrips_errcnt_rst
-    pulse_ctrl_in[9]            = 1'b0; //  compout_errcnt_rst
+    pulse_ctrl_in[8]            = 1'b0;
+    pulse_ctrl_in[9]            = 1'b0;
     pulse_ctrl_in[10]           = 1'b0; //  compin_inject
 
     pulse_ctrl_in[11]           = 1'b0; //  bx_delay [0]
     pulse_ctrl_in[12]           = 1'b0; //  bx_delay [1]
     pulse_ctrl_in[13]           = 1'b0; //  bx_delay [2]
+    pulse_ctrl_in[14]           = 1'b0; //  bx_delay [3]
 
-    pulse_ctrl_in[14]           = 1'b0; // compout_expect
+
+    pulse_ctrl_in[15]           = 1'b0; // compout_expect
 
 
-    pulse_ctrl_in[18:15]        = 1'b0; // triad_persist
-    pulse_ctrl_in[19]           = 1'b0; // triad_persist1
+    pulse_ctrl_in[19:16]        = 1'b0; // triad_persist
+    pulse_ctrl_in[20]           = 1'b0; // triad_persist1
 
-    pulse_ctrl_in[23]           = 1'b0; //  thresholds_errcnt_rst
-
-    pulse_ctrl_in[31:20]        = 0;
+    pulse_ctrl_in[31:21]        = 0;
 end
 
-assign  fire_pulse              = pulse_ctrl_in[0];
 assign  pulse_width             = pulse_ctrl_in[4:1];
-
-assign _pdac_en                 = pulse_ctrl_in[5];
-assign  pdac_din                = pulse_ctrl_in[6];
-assign  pdac_sclk               = pulse_ctrl_in[7];
-
-assign  halfstrips_errcnt_rst   = pulse_ctrl_in[8];
-assign  compout_errcnt_rst      = pulse_ctrl_in[9];
 assign  compin_inject           = pulse_ctrl_in[10];
+
+
 
 assign  bx_delay[0]             = pulse_ctrl_in[11];
 assign  bx_delay[1]             = pulse_ctrl_in[12];
 assign  bx_delay[2]             = pulse_ctrl_in[13];
+assign  bx_delay[3]             = pulse_ctrl_in[14];
 
 assign  compout_expect           = pulse_ctrl_in[14];
 
 assign  triad_persist            = pulse_ctrl_in [18:15];
 assign  triad_persist1           = pulse_ctrl_in [19];
-assign  thresholds_errcnt_rst    = pulse_ctrl_in [20];
 
 // Read
 wire [31:0] pulse_ctrl_out;
 assign pulse_ctrl_out [19:0]  = pulse_ctrl_in[19:0];
-assign pulse_ctrl_out [20]    = compout_last;
+assign pulse_ctrl_out [20]    = compout_ff;
 assign pulse_ctrl_out [21]    = pulser_ready;
 assign pulse_ctrl_out [31:22] = pulse_ctrl_in[31:22];
 
 //------------------------------------------------------------------------------
 // ADR_MUX1=0x03
 //------------------------------------------------------------------------------
-parameter ADR_MUX1 = 4'h3;
+parameter ADR_MUX1 = 8'h3;
 
 // Write
 
@@ -194,7 +247,7 @@ assign mux1_out[31:0] = mux1_in[31:0];  // All bits are R/W
 //------------------------------------------------------------------------------
 // ADR_MUX2=0x04
 //------------------------------------------------------------------------------
-parameter ADR_MUX2 = 4'h4;
+parameter ADR_MUX2 = 8'h04;
 
 // Write
 
@@ -251,15 +304,11 @@ assign halfstrips_out [31:0] = halfstrips [31:0];
 // ADR_HALFSTRIPS_EXPECT=0x06
 //------------------------------------------------------------------------------
 
-parameter ADR_HALFSTRIPS_EXPECT=4'h6;
+parameter ADR_HALFSTRIPS_EXPECT=4'h06;
 
-reg [31:0] halfstrips_expect_in;
-initial
-begin
-    halfstrips_expect_in = 32'b0;
-end
-
+reg  [31:0] halfstrips_expect_in = 32'b0;
 wire [31:0] halfstrips_expect_out;
+
 assign halfstrips_expect     [31:0] = halfstrips_expect_in [31:0];
 assign halfstrips_expect_out [31:0] = halfstrips_expect    [31:0];
 
@@ -268,11 +317,12 @@ assign halfstrips_expect_out [31:0] = halfstrips_expect    [31:0];
 //------------------------------------------------------------------------------
 
 parameter ADR_ACTIVE_STRIP_MASK = 4'hC;
-reg [31:0] active_strip_mask_in = 32'b0;
+
+reg  [31:0] active_strip_mask_in = 32'b0;
 wire [31:0] active_strip_mask_out;
 
-assign active_strip_mask [31:0]     = active_strip_mask_in [31:0];
-assign active_strip_mask_out [31:0] = active_strip_mask [31:0];
+assign active_strip_mask     [31:0] = active_strip_mask_in [31:0];
+assign active_strip_mask_out [31:0] = active_strip_mask    [31:0];
 
 //------------------------------------------------------------------------------
 // ADR_HALFSTRIPS_ERRCNT=0x7
@@ -300,13 +350,13 @@ wire [31:0] thresholds_errcnt_out;
 assign thresholds_errcnt_out [31:0] = thresholds_errcnt [31:0];
 
 //------------------------------------------------------------------------------
-// ADR_ADC=0x8
+// ADR_ADC=0x08
 //------------------------------------------------------------------------------
 
-parameter ADR_ADC = 4'h8;
+parameter ADR_ADC = 4'h08;
 
 // Write
-reg  [31:0] adc_in;
+reg  [31:0] adc_in = 32'b0;
 
 initial
 begin
@@ -324,10 +374,16 @@ assign  adc_sclk = adc_in[2];
 
 wire [31:0] adc_out;
 
+reg adc_miso_ff = 0;
+always @ (negedge adc_sclk)
+begin
+    adc_miso_ff <= adc_miso;
+end
+
 assign adc_out[0] = _adc_cs;       // W/R
 assign adc_out[1] =  adc_mosi;     // W/R
 assign adc_out[2] =  adc_sclk;     // W/R
-assign adc_out[3] =  adc_miso;     // R
+assign adc_out[3] =  adc_miso_ff;  // R
 
 assign adc_out[31:4]  =  adc_in[31:4];    // Unused
 
@@ -367,227 +423,112 @@ assign ddd_out[31:4] =  ddd_in [31:4];
 // FTDI 245H Serial-USB Interface Control
 //------------------------------------------------------------------------------
 
-//reg [7:0] ft_data;
+parameter PC_READ_CMD  = 8'hAA;
+parameter PC_WRITE_CMD = 8'h55;
 
-//------------------------------------------------------------------------------
-// Readout of FTDI Chip
-//------------------------------------------------------------------------------
+reg  [31:0] dword_out = 0;
+reg  [31:0] dword_in  = 0;
 
-parameter PC_READ_CMD  = 4'hA;
-parameter PC_WRITE_CMD = 4'h5;
+reg [3:0] serial_state = 4'h0;
 
-reg[31:0] dword_out;
-reg[3:0] ibyte;
+parameter idle    = 4'h0;
+parameter command = 4'h1;
+parameter address = 4'h2;
+parameter read0   = 4'h3;
+parameter read1   = 4'h4;
+parameter read2   = 4'h5;
+parameter read3   = 4'h6;
+parameter write0  = 4'h7;
+parameter write1  = 4'h8;
+parameter write2  = 4'h9;
+parameter write3  = 4'hA;
 
-reg[3:0] cmd;
-reg[3:0] adr;
-wire[3:0] reg_adr;
+wire rx_data =  (cmd==PC_WRITE_CMD) // Data from PC
+wire tx_data  = (cmd==PC_READ_CMD) // Data to PC
 
-reg[31:0] dword_in;
+wire data_available = !(_ft_rxf);
+wire can_read       = (!_ft_rxf && !_ft_rd);
+wire can_write      = (!_ft_txe && !_ft_wr);
 
-/* Serial Read/Write State Machine */
-initial
-begin
-    ibyte        <= 32'h0;
-    cmd          <= 4'h0;
-    adr          <= 4'hF;
-    dword_in     <= 32'h0;
+wire serial_wr = (serial_state==write1 || serial_state==write2 || serial_state==write3 || serial_state==write4);
+wire serial_rd = (serial_state==idle || serial_state==address || serial_state==command || serial_state==read1 || serial_state==read2 || serial_state==read3 || serial_state==rd4);
+
+wire update_serial <= (serial_state==idle);
+
+reg cmd_ff = 0;
+reg adr_ff = 0;
+always @ (posedge clk)  begin
+    cmd_ff <= (serial_state==command) ? ft_byte_out[7:0] : cmd_ff;
+    adr_ff <= (serial_state==address) ? ft_byte_out[7:0] : adr_ff;
 end
 
-parameter idle = 4'h0;
-parameter rd1  = 4'h1;
-parameter rd2  = 4'h2;
-parameter rd3  = 4'h3;
-parameter rd4  = 4'h4;
-parameter wr1  = 4'h5;
-parameter wr2  = 4'h6;
-parameter wr3  = 4'h7;
-parameter wr4  = 4'h8;
-parameter wr5  = 4'h9;
-parameter cmdstate = 4'hA;
+wire cmd = (serial_state==command) ? ft_byte_out[7:0] : cmd_ff;
+wire adr = (serial_state==address) ? ft_byte_out[7:0] : adr_ff;
 
-reg [3:0] serialstate = 4'h0;
-reg update_serial = 1'b0;
+wire adr_valid = (adr<MXADR) && (adr>MNADR);
 
-`ifdef LOOPBACK
-always @ (posedge clk)
-begin
-    if (!_ft_rxf)
-    begin
-        _serial_wr <= 1'b1;
-        _serial_rd  <= 1'b0;
-    end
-    else if (!_ft_txe)
-    begin
-        ft_byte_in <= ft_byte_out;
-        _serial_wr <= 1'b0;
-        _serial_rd  <= 1'b1;
-    end
-    else
-    begin
-        _serial_wr <= 1'b1;
-        _serial_rd  <= 1'b1;
-    end
+reg [7:0] readchar_0, readchar_1, readchar_2, readchar_3;
+always @ (posedge clk) begin
+    // latch previous chars to pack into data word
+    readchar_0 <= (serial_state==read0) ? ft_byte_out[7:0] : readchar_0;
+    readchar_1 <= (serial_state==read1) ? ft_byte_out[7:0] : readchar_1;
+    readchar_2 <= (serial_state==read2) ? ft_byte_out[7:0] : readchar_2;
+
+    dword_in [31:0] <= (serial_state==read3) ? (ft_byte_out[7:0], readchar_2, readchar_1, readchar_0) : dword_in[31:0];
 end
 
-`elsif FIXED_OUTPUT
+assign ft_byte_in = (serial_state==read0) ? (dword_out[7:0] :
+                    (serial_state==read1) ? (dword_out[15:8] :
+                    (serial_state==read2) ? (dword_out[23:16] :
+                    (serial_state==read2) ? (dword_out[31:24];
 
 always @ (posedge clk)
 begin
-    if (!_ft_rxf)
-    begin
-        _serial_wr <= 1'b1;
-        _serial_rd  <= 1'b0;
-    end
-    else if (!_ft_txe)
-    begin
-        if (ft_byte_out[3:0]==PC_READ_CMD) // Data to PC
-            ft_byte_in <= 8'hAA;
-        if (ft_byte_out[3:0]==PC_WRITE_CMD) // Data to PC
-            ft_byte_in <= 8'h55;
+    case (serial_state)
+        idle    : serial_state <= (data_available) ? address : idle;
+        address : serial_state <= (adr_valid)      ? command : address;
+        command : serial_state <= (tx_data)        ? write0  : (rx_data) ? read0 : idle;
 
-        _serial_wr <= 1'b0;
-        _serial_rd  <= 1'b1;
-    end
-    else
-        _serial_wr <= 1'b1;
-        _serial_rd  <= 1'b1;
-end
+        read0:   serial_state <= read1; /* Read (from PC) */
+        read1:   serial_state <= read2;
+        read2:   serial_state <= read3;
+        read3:   serial_state <= idle;
 
-`else
+        write0:  serial_state <= write1; /* Write (to PC)*/
+        write1:  serial_state <= write2;
+        write2:  serial_state <= write3;
+        write3:  serial_state <= write4;
 
-always @ (posedge clk)
-begin
-    case (serialstate)
-        /* Idle */
-        idle:
-        begin
-            // Seq
-            _serial_wr  <= 1'b1;
-            _serial_rd  <= 1'b1;
-            ft_byte_in  <= 8'h0;
-
-            // Combo
-            if(!_ft_rxf)
-            begin
-                _serial_rd  <= 1'b0;
-                serialstate <= cmdstate;
-            end
-            else
-                serialstate <= idle;
-        end
-
-        /* Parses Command Byte */
-        cmdstate:
-        begin
-
-            adr <= ft_byte_out[7:4];
-
-            if (ft_byte_out[3:0]==PC_READ_CMD) // Data to PC
-            begin
-                _serial_wr  <= 1'b0;
-                _serial_rd  <= 1'b1;
-                serialstate <= wr1;
-            end
-            else if (ft_byte_out[3:0]==PC_WRITE_CMD) // Data from PC
-            begin
-                _serial_wr  <= 1'b1;
-                _serial_rd  <= 1'b0;
-                serialstate <= rd1;
-            end
-            else
-            begin
-                _serial_wr  <= 1'b1;
-                _serial_rd  <= 1'b1;
-                serialstate <= idle;
-            end
-        end
-
-
-        /* Read (from PC)*/
-        rd1:
-        begin
-            // Seq
-            update_serial <= 1'b0;
-            _serial_wr    <= 1'b1;
-            _serial_rd    <= 1'b0;
-            ft_byte_in    <= dword_out[7:0];
-            // Combo
-            if (_ft_rd==0) serialstate <= rd2;
-        end
-
-        rd2:
-        begin
-            ft_byte_in <= dword_out[15:8];
-            if (_ft_rd==0) serialstate <= rd3;
-        end
-        rd3:
-        begin
-            ft_byte_in <= dword_out[23:16];
-            if (_ft_rd==0) serialstate <= rd4;
-        end
-        rd4:
-        begin
-            _serial_rd    <= 1'b1;
-            ft_byte_in    <= dword_out[31:24];
-            if (_ft_rd==0) serialstate <= idle;
-        end
-
-        /* Write (to PC)*/
-        wr1: begin
-             update_serial      <= 1'b0;
-            _serial_wr          <= 1'b0;
-            _serial_rd          <= 1'b1;
-             dword_in    [7:0]  <= ft_byte_out[7:0];
-            if (_ft_wr==0) serialstate <= wr2;
-        end
-        wr2:
-        begin
-            dword_in    [15:8]  <= ft_byte_out [7:0];
-            if (_ft_wr==0) serialstate <= wr3;
-        end
-        wr3:
-        begin
-            dword_in    [23:16] <= ft_byte_out [7:0];
-            if (_ft_wr==0) serialstate <= wr4;
-        end
-        wr4:
-        begin
-            dword_in    [31:24] <= ft_byte_out [7:0];
-            if (_ft_wr==0) serialstate <= wr5;
-        end
-        wr5:
-        begin
-            _serial_wr  <= 1'b1;
-            serialstate  <= idle;
-            update_serial <= 1'b1;
-        end
-
-        /* This Should Never Happen */
-        default:
-        begin
-            ft_byte_in   <= 8'h0;
-            dword_in     <= 32'h0;
-            serialstate   <= idle;
-        end
+        siwu:    serial_state <= (siwu_counter[4]) ? idle : siwu;
+        default: serial_state <= idle;
     endcase
 end
+
+reg [4:0] siwu_counter=0;
+always @(posedge clock) begin
+    siwu_counter <= (serial_state==siwu) ? siwu_counter+1 : 0;
+end
+
+assign _ft_siwu <= !(serial_state = siwu);
 
 /* Out to PC */
 always @(*)
 begin
     case(adr)
+        ADR_LOOPBACK:            dword_out  = loopback_out;
         ADR_COMP_CONFIG:         dword_out  = comp_config_out;
         ADR_PULSE_CTRL:          dword_out  = pulse_ctrl_out;
+        ADR_FIRE_PULSE:          dword_out  = fire_pulse_out;
         ADR_MUX1:                dword_out  = mux1_out;
         ADR_MUX2:                dword_out  = mux2_out;
         ADR_HALFSTRIPS:          dword_out  = halfstrips_out;
         ADR_HALFSTRIPS_EXPECT:   dword_out  = halfstrips_expect_out;
         ADR_HALFSTRIPS_ERRCNT:   dword_out  = halfstrips_errcnt_out;
-		ADR_THRESHOLDS_ERRCNT:   dword_out  = thresholds_errcnt_out;
+    		ADR_THRESHOLDS_ERRCNT:   dword_out  = thresholds_errcnt_out;
         ADR_COMPOUT_ERRCNT:      dword_out  = compout_errcnt_out;
         ADR_ADC:                 dword_out  = adc_out;
         ADR_DDD:                 dword_out  = ddd_out;
+        ADR_DAC:                 dword_out  = dac_out;
         ADR_ACTIVE_STRIP_MASK:   dword_out  = active_strip_mask_out;
         default:                 dword_out  = 32'hDEADBEEF;
     endcase
@@ -595,6 +536,7 @@ end
 
 /* In from PC */
 
+wire wr_loopback          = (adr==ADR_LOOPBACK)          && (update_serial);
 wire wr_comp_config       = (adr==ADR_COMP_CONFIG)       && (update_serial);
 wire wr_pulse_ctrl        = (adr==ADR_PULSE_CTRL)        && (update_serial);
 wire wr_mux1              = (adr==ADR_MUX1)              && (update_serial);
@@ -603,19 +545,24 @@ wire wr_halfstrips_expect = (adr==ADR_HALFSTRIPS_EXPECT) && (update_serial);
 wire wr_adc               = (adr==ADR_ADC)               && (update_serial);
 wire wr_ddd               = (adr==ADR_DDD)               && (update_serial);
 wire wr_active_strip_mask = (adr==ADR_ACTIVE_STRIP_MASK) && (update_serial);
+wire wr_dac               = (adr==ADR_DAC              ) && (update_serial);
+wire wr_fire_pulse        = (adr==ADR_FIRE_PULSE)        && (update_serial);
 
 always @ (posedge clk)
 begin
+    if (wr_loopback)          loopback_in          <= dword_in;
     if (wr_comp_config)       comp_config_in       <= dword_in;
     if (wr_pulse_ctrl)        pulse_ctrl_in        <= dword_in;
+    if (wr_fire_pulse)        fire_pulse_in        <= dword_in;
     if (wr_mux1)              mux1_in              <= dword_in;
     if (wr_mux2)              mux2_in              <= dword_in;
     if (wr_halfstrips_expect) halfstrips_expect_in <= dword_in;
     if (wr_adc)               adc_in               <= dword_in;
     if (wr_ddd)               ddd_in               <= dword_in;
     if (wr_active_strip_mask) active_strip_mask_in <= dword_in;
+    if (wr_dac)               dac_in               <= dword_in;
 end
 
-`endif
-
+//----------------------------------------------------------------------------------------------------------------------
 endmodule
+//----------------------------------------------------------------------------------------------------------------------

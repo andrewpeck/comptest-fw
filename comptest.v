@@ -58,8 +58,7 @@ module comptest (
     input   compout,
     input   [7:0] distrip,
 
-    input osc40
-
+    input osc80
 );
 
 
@@ -73,20 +72,18 @@ module comptest (
 wire dcm_rst;
 wire dcm_islocked;
 
-assign _ft_siwu  = 1'b1;
 assign _ft_reset = 1'b1;
 
 IBUFG CLOCK60 (.I(ft_clk),.O(clk60));
-IBUFG CLOCK40 (.I(osc40), .O(clk40));
+//IBUFG CLOCK40 (.I(osc40), .O(clk40));
 
-//dcm uclkgen
-//(
-//    .CLK_IN1(ft_clk), // Clock in ports
-//    .CLK_OUT1(clk60), // Clock out ports
-//    .CLK_OUT2(clk40), // Clock out ports
-//    .RESET(dcm_rst),       // IN
-//    .LOCKED(dcm_islocked)
-//);
+dcm uclkgen (
+    .CLK_IN1  ( osc80), // Clock in ports
+    .CLK_OUT1 ( clk80), // Clock out ports
+    .CLK_OUT2 ( clk40), // Clock out ports
+    .RESET    ( dcm_rst),       // IN
+    .LOCKED   ( dcm_islocked)
+);
 
 // Clock forwarding circuit using the double data-rate register
 //        Spartan-3E/3A/6
@@ -97,13 +94,13 @@ ODDR2 #(
     .INIT(1'b0),            // Sets initial state of the Q output to 1'b0 or 1'b1
     .SRTYPE("SYNC")         // Specifies "SYNC" or "ASYNC" set/reset
     ) clock_forward_inst (
-        .Q(lctclk),           // 1-bit DDR output data
-        .C0(clk40),           // 1-bit clock input
-        .C1(~clk40),         // 1-bit clock input
-        .CE(!lctrst),            // 1-bit clock enable input
-        .D0(1'b0),            // 1-bit data input (associated with C0)
-        .D1(1'b1),            // 1-bit data input (associated with C1)
-        .R(!lctrst)          // 1-bit reset input
+        .Q  (lctclk),           // 1-bit DDR output data
+        .C0 ( clk40),           // 1-bit clock input
+        .C1 (~clk40),         // 1-bit clock input
+        .CE (1'b1),      // 1-bit clock enable input
+        .D0 (1'b0),         // 1-bit data input (associated with C0)
+        .D1 (1'b1),         // 1-bit data input (associated with C1)
+        .R  (1'b0)          // 1-bit reset input
         //.S(1'b1) // 1-bit set input
     );
 
@@ -124,29 +121,31 @@ wire [31:0] compout_errcnt;
 wire [31:0] thresholds_errcnt;
 
 wire compout_expect;
-wire compout_last;
+wire compout_ff  ;
 wire compout_errcnt_rst;
 wire halfstrips_errcnt_rst;
 wire compin_inject;
 
 wire pulser_ready;
 
-wire [2:0] bx_delay;
+wire [3:0] bx_delay;
 wire [3:0] pulse_width;
 
 wire fire_pulse;
 
 wire [31:0] active_strip_mask;
+wire [31:0] halfstrips_ff;
 
 comparator_injector u_comparator_injector (
-    .halfstrips                           ( halfstrips[31:0]         ),
+    .halfstrips                           ( halfstrips       [31:0]  ),
+    .halfstrips_ff                        ( halfstrips_ff    [31:0]  ),
     .halfstrips_expect                    ( halfstrips_expect[31:0]  ),
     .halfstrips_errcnt                    ( halfstrips_errcnt[31:0]  ),
     .thresholds_errcnt                    ( thresholds_errcnt[31:0]  ),
     .compout_errcnt                       ( compout_errcnt           ),
     .compout                              ( compout                  ),
     .compout_expect                       ( compout_expect           ),
-    .compout_last                         ( compout_last             ),
+    .compout_ff                           ( compout_ff               ),
     .active_strip_mask                    ( active_strip_mask        ),
     .compout_errcnt_rst                   ( compout_errcnt_rst       ),
     .halfstrips_errcnt_rst                ( halfstrips_errcnt_rst    ),
@@ -158,6 +157,7 @@ comparator_injector u_comparator_injector (
     .bx_delay                             ( bx_delay                 ),
     .pulse_width                          ( pulse_width              ),
     .pulse_en                             ( pulse_en                 ),
+    .distrip                              ( distrip [7:0]            ),
     .clk                                  ( clk40                    ));
 
 /*
@@ -185,22 +185,41 @@ ft245 u_ft245 (
 
     .data         ( ft_data     ), // Bidirectional FIFO data
 
-    ._write_data  (_serial_wr   ), // put low if you want to write data
-    ._read_data   (_serial_rd   ), // put low if you want to read data
+    .write_data   (serial_wr   ), // put low if you want to write data
+    .read_data    (serial_rd   ), // put low if you want to read data
 
     .data_to_pc   ( ft_byte_in ), // data to be written to pc
     .data_to_fpga ( ft_byte_out)  // data to be read out from pc
 );
 
 
-/*
- * VME Style Serial Interface
- */
 
 wire triad_perist1;
 wire [3:0] triad_persist;
+wire [13:0] pdac_data;
+wire [13:0] cdac_data;
 
-// Instantiate the module
+dac pdac (
+    .clock (clk40),
+    .data  (pdac_data[13:0]),
+    .dac_update (pdac_update),
+
+    ._en (pdac_en),
+    .din (pdac_din),
+    .sclk (pdac_sclk)
+);
+
+dac pdac (
+    .clock (clk40),
+    .data  (pdac_data[13:0]),
+    .dac_update (pdac_update),
+
+    ._en (pdac_en),
+    .din (pdac_din),
+    .sclk (pdac_sclk)
+);
+
+// VME Style Serial Interface
 serial u_serial            (
     .adc_sclk              (  adc_sclk                ),
     ._adc_cs               ( _adc_cs                  ),
@@ -211,14 +230,20 @@ serial u_serial            (
     .pdac_din              (  pdac_din                ),
     .pdac_sclk             (  pdac_sclk               ),
 
-    .bx_delay              (  bx_delay[2:0]           ),
+    .pdac_update           (pdac_update),
+    .pdac_data             (pdac_data [13:0]),
+
+    .cdac_update           (cdac_update),
+    .cdac_data             (cdac_data [13:0]),
+
+    .bx_delay              (  bx_delay[3:0]           ),
     .pulse_width           (  pulse_width[3:0]        ),
     .fire_pulse            (  fire_pulse              ),
     .pulser_ready          (  pulser_ready            ),
     .triad_persist         (  triad_persist[3:0]      ),
     .triad_persist1        (  triad_persist1          ),
 
-    .halfstrips            (  halfstrips[31:0]        ),
+    .halfstrips            (  halfstrips_ff    [31:0] ),
     .halfstrips_expect     (  halfstrips_expect[31:0] ),
 
     .halfstrips_errcnt     (  halfstrips_errcnt[31:0] ),
@@ -228,7 +253,7 @@ serial u_serial            (
     .thresholds_errcnt_rst ( thresholds_errcnt_rst    ),
 
     .compout_expect        (  compout_expect          ),
-    .compout_last          (  compout_last            ),
+    .compout_ff            (  compout_ff              ),
 
     .compout_errcnt        (  compout_errcnt          ),
     .compout_errcnt_rst    (  compout_errcnt_rst      ),
@@ -257,13 +282,14 @@ serial u_serial            (
     .ddd_sclk              (  ddd_sclk                ),
 
     .clk                   ( clk60                    ),
-    ._serial_wr            (_serial_wr                ),
-    ._serial_rd            (_serial_rd                ),
+    .serial_wr             (serial_wr                ),
+    .serial_rd             (serial_rd                ),
 
     ._ft_rxf               (_ft_rxf                   ),
     ._ft_txe               (_ft_txe                   ),
     ._ft_wr                (_ft_wr                    ),
     ._ft_rd                (_ft_rd                    ),
+	 ._ft_siwu               (_ft_siwu                  ),
     .ft_byte_out           ( ft_byte_out              ),
     .ft_byte_in            ( ft_byte_in               ));
 
@@ -274,19 +300,7 @@ serial u_serial            (
  */
 
 wire [7:0] tskip;   // Skipped triads
-
-wire triad_skip;
-assign triad_skip = (|tskip[0]) | (|tskip[1]) | (|tskip[2]) | (|tskip[3]) | (|tskip[4]) | (|tskip[5]);
-
-
-reg   [3:0]   persist  = 0;            // Output persistence-1, ie 5 gives 6-clk width
-reg           persist1 = 0;            // Output persistence is 1, use with  persist=0
-
-always @ (posedge clk40)
-begin
-    persist  <= (triad_persist-1'b1);
-    persist1 <= (triad_persist1==1 || triad_persist1==0);
-end
+wire triad_skip = (|tskip[0]) | (|tskip[1]) | (|tskip[2]) | (|tskip[3]) | (|tskip[4]) | (|tskip[5]);
 
 genvar idistrip;
 generate
@@ -294,9 +308,9 @@ for (idistrip=0; idistrip<=7; idistrip=idistrip+1)
 begin: distrip_loop
     triad_decode utriad (
         .clock          ( clk40                               ),
-        .reset          ( lctrst                              ),
-        .persist        ( persist                             ),
-        .persist1       ( persist1                            ),
+        .reset          ( 1'b0                                ),
+        .persist        ( triad_persist-1'b1                  ), // Output persistence-1, ie 5 gives 6-clk width
+        .persist1       ( triad_persist1                      ), // Output persistence is 1, use with  persist=0
         .triad          ( distrip[idistrip]                   ),
         .h_strip        ( halfstrips[3+idistrip*4:idistrip*4] ),
         .triad_skip     ( tskip[idistrip]                     ));

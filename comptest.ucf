@@ -74,7 +74,7 @@ NET "pdac_din"    LOC= "P80";
 NET "pdac_sclk"   LOC= "P79";
 NET "_pdac_en"    LOC= "P78";
 
-NET "osc40"       LOC= "P56";
+NET "osc80"       LOC= "P56";
 NET "compin"      LOC= "P61";
 NET "compout"     LOC= "P64";
 
