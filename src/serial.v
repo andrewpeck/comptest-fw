@@ -41,9 +41,9 @@ module serial
 
     // Mux Ctrl
 
-    output [3:0]  high_adr;
-    output [3:0]   med_adr;
-    output [3:0]   low_adr;
+    output [3:0]  mux_high_adr,
+    output [3:0]  mux_med_adr,
+    output [3:0]  mux_low_adr,
 
     output mux_en,
     output mux_a0_next,
@@ -51,6 +51,7 @@ module serial
 
     output mux_a0_prev,
     output mux_a1_prev
+
 );
 
 
@@ -62,7 +63,7 @@ parameter adr_pulse_ctrl        = 7'd4;
 parameter adr_halfstrips        = 7'd5;
 parameter adr_halfstrips_expect = 7'd6;
 parameter adr_active_strip_mask = 7'd7;
-parameter adr_offsets_errcnt = 7'd8;
+parameter adr_offsets_errcnt    = 7'd8;
 parameter adr_compout_errcnt    = 7'd9;
 parameter adr_thresholds_errcnt = 7'd10; // last address
 
@@ -96,7 +97,7 @@ genvar ireg;
 generate
 for (ireg=0; ireg<MXREG; ireg=ireg+1) begin: regloop
 
-  register u_regloop (
+  register_entry u_regloop (
     .clk     (clk),
     .regadr  (ireg),              // address of this register
     .adr     (adr),               // serial address
@@ -172,7 +173,7 @@ for (ireg=0; ireg<MXREG; ireg=ireg+1) begin: regloop
     assign data_rd_vec[ireg][20:0]  = data_wr_vec[ireg][20:0]; // readback
     assign data_rd_vec[ireg][21]    = compout_ff;              // read only
     assign data_rd_vec[ireg][22]    = pulser_ready;            // read only
-    assign data_rd_vec[ireg][31:23] = pulse_ctrl_wr[31:23];    // readback
+    assign data_rd_vec[ireg][31:23] = data_wr_vec[ireg][31:23];    // readback
 
   end
 
@@ -209,7 +210,7 @@ for (ireg=0; ireg<MXREG; ireg=ireg+1) begin: regloop
   else if (ireg==adr_halfstrips) begin
 
     // Read only
-    assign data_rd_vec [31:0] = halfstrips [31:0]; // WRITE only
+    assign data_rd_vec[ireg][31:0] = halfstrips [31:0]; // WRITE only
 
   end
 
@@ -246,10 +247,9 @@ for (ireg=0; ireg<MXREG; ireg=ireg+1) begin: regloop
   else if (ireg==adr_offsets_errcnt) begin
 
     // write
-    assign offsets_errcnt_rd [31:0] = data_wr_vec[ireg][31:0];
 
     // read
-    assign data_rd_vec[adr_offsets_errcnt] = data_wr_vec[adr_offsets_errcnt];
+    assign data_rd_vec[adr_offsets_errcnt] = offsets_errcnt[31:0];
 
   end
 

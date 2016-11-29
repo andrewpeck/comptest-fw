@@ -2,7 +2,7 @@ module spi (
   input  mosi,
   output miso,
   input  sclk,
-  input  cs
+  input  cs,
 
   output  adr_latched,
   output data_latched,
@@ -62,7 +62,7 @@ end
 // spi mode 0: clock out on rising
 always @(negedge sclk) begin
   if (select && adr_latched) begin
-    miso <= (data_in >> (clk_counter - (adrsize-1)); //start shifting out data on the 7th falling edge
+    miso <= data_in >> (clk_counter - (adrsize-1)); //start shifting out data on the 7th falling edge
   end
 end
 

@@ -7,7 +7,7 @@ module mux_protect (
 
   input mux_en_in,
 
-  output mux_en_out,
+  output mux_en_out
 
 );
 

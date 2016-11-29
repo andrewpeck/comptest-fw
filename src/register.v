@@ -1,4 +1,4 @@
-module register (
+module register_entry (
   input clk,
   input wr,
 
