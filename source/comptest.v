@@ -2,63 +2,42 @@
 
 module comptest (
     // Data Delay Chip
-    output _ddd_al,
-    input  ddd_miso,
-    output ddd_mosi,
-    output ddd_sclk,
-
-    // Serial Interface
-    output _ft_reset,
-    output _ft_oe,
-    input  _ft_txe,
-    input  _ft_rxf,
-    input   ft_clk,
-    output _ft_wr,
-    output _ft_siwu,
-    output _ft_rd,
-
-    // bidirectional 8 bit data bus
-    inout   [7:0] ft_data,
-
-    // Pulse Generation
-    output   pdac_sclk,
-    output   pdac_din,
-    output  _pdac_en,
-    output   pulse_en,
-
-    input pulse_trig,
-
-    // Comparator Threshold DAC
-    output  cdac_sclk,
-    output  cdac_din,
-    output  _cdac_en,
-
+    input  mosi,
+    output miso,
+    input  sclk,
+    input  cs,
 
     // Pulse Multiplexer Control
-    output  [15:0] mux_a1,
+
+    output  mux_en, // global mux en
+
+    output [3:0] adr_high,
+    output [3:0] adr_med,
+    output [3:0] adr_low,
+
     output  mux_a0_next,
-    output  [15:0] mux_a0,
     output  mux_a1_next,
+
     output  mux_a1_prev,
     output  mux_a0_prev,
 
-    // ADC Control
-    output  _adc_cs,
-    input   adc_miso,
-    output  adc_mosi,
-    output  adc_sclk,
-
-
     // Comparator Logic
+
+    input   [7:0] distrip,
+
+    input   compout,
+
     output  compin,
     output  lctrst,
     output  lctclk,
     output  [2:0] pktime,
     output  [1:0] pkmode,
-    input   compout,
-    input   [7:0] distrip,
 
-    input osc80
+    // Leds
+
+    output [11:0] led,
+
+    input osc40
 );
 
 
@@ -66,64 +45,17 @@ module comptest (
  * Inter-module connections
  */
 
-//------------------------------------------------------------------------------
-// 40 MHz Clock Generation
-//------------------------------------------------------------------------------
-wire dcm_rst;
-wire dcm_islocked;
-
-assign _ft_reset = 1'b1;
-
-IBUFG CLOCK60 (.I(ft_clk),.O(clk60));
-//IBUFG CLOCK40 (.I(osc40), .O(clk40));
-
-dcm uclkgen (
-    .CLK_IN1  ( osc80), // Clock in ports
-    .CLK_OUT1 ( clk80), // Clock out ports
-    .CLK_OUT2 ( clk40), // Clock out ports
-    .RESET    ( dcm_rst),       // IN
-    .LOCKED   ( dcm_islocked)
-);
-
-// Clock forwarding circuit using the double data-rate register
-//        Spartan-3E/3A/6
-// Xilinx HDL Language Template, version 14.7
-
-ODDR2 #(
-    .DDR_ALIGNMENT("NONE"), // Sets output alignment to "NONE", "C0" or "C1"
-    .INIT(1'b0),            // Sets initial state of the Q output to 1'b0 or 1'b1
-    .SRTYPE("SYNC")         // Specifies "SYNC" or "ASYNC" set/reset
-    ) clock_forward_inst (
-        .Q  (lctclk),           // 1-bit DDR output data
-        .C0 ( clk40),           // 1-bit clock input
-        .C1 (~clk40),         // 1-bit clock input
-        .CE (1'b1),      // 1-bit clock enable input
-        .D0 (1'b0),         // 1-bit data input (associated with C0)
-        .D1 (1'b1),         // 1-bit data input (associated with C1)
-        .R  (1'b0)          // 1-bit reset input
-        //.S(1'b1) // 1-bit set input
-    );
-
-    // End of clock_forward_inst instantiation
-
-
-
-/*
- * Comparator Injector
- */
-
-// Intermodule Connections
 wire [31:0] halfstrips;
 wire [31:0] halfstrips_expect;
 
-wire [31:0] halfstrips_errcnt;
+wire [31:0] offsets_errcnt;
 wire [31:0] compout_errcnt;
 wire [31:0] thresholds_errcnt;
 
 wire compout_expect;
 wire compout_ff  ;
 wire compout_errcnt_rst;
-wire halfstrips_errcnt_rst;
+wire offsets_errcnt_rst;
 wire compin_inject;
 
 wire pulser_ready;
@@ -134,173 +66,155 @@ wire [3:0] pulse_width;
 wire fire_pulse;
 
 wire [31:0] active_strip_mask;
-wire [31:0] halfstrips_ff;
-
-comparator_injector u_comparator_injector (
-    .halfstrips                           ( halfstrips       [31:0]  ),
-    .halfstrips_ff                        ( halfstrips_ff    [31:0]  ),
-    .halfstrips_expect                    ( halfstrips_expect[31:0]  ),
-    .halfstrips_errcnt                    ( halfstrips_errcnt[31:0]  ),
-    .thresholds_errcnt                    ( thresholds_errcnt[31:0]  ),
-    .compout_errcnt                       ( compout_errcnt           ),
-    .compout                              ( compout                  ),
-    .compout_expect                       ( compout_expect           ),
-    .compout_ff                           ( compout_ff               ),
-    .active_strip_mask                    ( active_strip_mask        ),
-    .compout_errcnt_rst                   ( compout_errcnt_rst       ),
-    .halfstrips_errcnt_rst                ( halfstrips_errcnt_rst    ),
-    .thresholds_errcnt_rst                ( thresholds_errcnt_rst    ),
-    .compin_inject                        ( compin_inject            ),
-    .compin                               ( compin                   ),
-    .fire_pulse                           ( fire_pulse               ),
-    .pulser_ready                         ( pulser_ready             ),
-    .bx_delay                             ( bx_delay                 ),
-    .pulse_width                          ( pulse_width              ),
-    .pulse_en                             ( pulse_en                 ),
-    .distrip                              ( distrip [7:0]            ),
-    .clk                                  ( clk40                    ));
-
-/*
- *  FT245 USB-to-Serial Converter
- */
-
-// Inter-module connects
-wire _serial_wr;
-wire _serial_rd;
-
-wire [7:0] ft_byte_in;
-wire [7:0] ft_byte_out;
-
-ft245 u_ft245 (
-    .clk          ( clk60       ), // 60 MHz FT232H clock
-
-    ._txe         (_ft_txe      ), // Can TX
-    ._rxf         (_ft_rxf      ), // Can RX
-
-    ._rd          (_ft_rd       ), // Read Must Be low to be able to read
-    ._wr          (_ft_wr       ), // Write must be low to write to usb
-
-    ._oe          (_ft_oe       ), // Output enable, high to write to USB
-    //._reset       (_ft_reset    ), // FTDI Reset, active low
-
-    .data         ( ft_data     ), // Bidirectional FIFO data
-
-    .write_data   (serial_wr   ), // put low if you want to write data
-    .read_data    (serial_rd   ), // put low if you want to read data
-
-    .data_to_pc   ( ft_byte_in ), // data to be written to pc
-    .data_to_fpga ( ft_byte_out)  // data to be read out from pc
-);
-
-
+wire [31:0] halfstrips_last;
 
 wire triad_perist1;
 wire [3:0] triad_persist;
 wire [13:0] pdac_data;
 wire [13:0] cdac_data;
 
-dac pdac (
-    .clock (clk40),
-    .data  (pdac_data[13:0]),
-    .dac_update (pdac_update),
-
-    ._en (pdac_en),
-    .din (pdac_din),
-    .sclk (pdac_sclk)
-);
-
-dac pdac (
-    .clock (clk40),
-    .data  (pdac_data[13:0]),
-    .dac_update (pdac_update),
-
-    ._en (pdac_en),
-    .din (pdac_din),
-    .sclk (pdac_sclk)
-);
-
-// VME Style Serial Interface
-serial u_serial            (
-    .adc_sclk              (  adc_sclk                ),
-    ._adc_cs               ( _adc_cs                  ),
-    .adc_mosi              (  adc_mosi                ),
-    .adc_miso              (  adc_miso                ),
-
-    ._pdac_en              ( _pdac_en                 ),
-    .pdac_din              (  pdac_din                ),
-    .pdac_sclk             (  pdac_sclk               ),
-
-    .pdac_update           (pdac_update),
-    .pdac_data             (pdac_data [13:0]),
-
-    .cdac_update           (cdac_update),
-    .cdac_data             (cdac_data [13:0]),
-
-    .bx_delay              (  bx_delay[3:0]           ),
-    .pulse_width           (  pulse_width[3:0]        ),
-    .fire_pulse            (  fire_pulse              ),
-    .pulser_ready          (  pulser_ready            ),
-    .triad_persist         (  triad_persist[3:0]      ),
-    .triad_persist1        (  triad_persist1          ),
-
-    .halfstrips            (  halfstrips_ff    [31:0] ),
-    .halfstrips_expect     (  halfstrips_expect[31:0] ),
-
-    .halfstrips_errcnt     (  halfstrips_errcnt[31:0] ),
-    .halfstrips_errcnt_rst (  halfstrips_errcnt_rst   ),
-
-    .thresholds_errcnt     ( thresholds_errcnt[31:0]  ),
-    .thresholds_errcnt_rst ( thresholds_errcnt_rst    ),
-
-    .compout_expect        (  compout_expect          ),
-    .compout_ff            (  compout_ff              ),
-
-    .compout_errcnt        (  compout_errcnt          ),
-    .compout_errcnt_rst    (  compout_errcnt_rst      ),
-
-    .compin_inject         (  compin_inject           ),
-
-    .pktime                (  pktime[2:0]             ),
-    .pkmode                (  pkmode[1:0]             ),
-    .lctrst                (  lctrst                  ),
-
-    ._cdac_en              ( _cdac_en                 ),
-    .cdac_din              (  cdac_din                ),
-    .cdac_sclk             (  cdac_sclk               ),
-    .active_strip_mask     (  active_strip_mask       ),
-
-    .mux_a0                (  mux_a0[15:0]            ),
-    .mux_a1                (  mux_a1[15:0]            ),
-    .mux_a0_next           (  mux_a0_next             ),
-    .mux_a1_next           (  mux_a1_next             ),
-    .mux_a0_prev           (  mux_a0_prev             ),
-    .mux_a1_prev           (  mux_a1_prev             ),
-
-    ._ddd_al               ( _ddd_al                  ),
-    .ddd_mosi              (  ddd_mosi                ),
-    .ddd_miso              (  ddd_miso                ),
-    .ddd_sclk              (  ddd_sclk                ),
-
-    .clk                   ( clk60                    ),
-    .serial_wr             (serial_wr                ),
-    .serial_rd             (serial_rd                ),
-
-    ._ft_rxf               (_ft_rxf                   ),
-    ._ft_txe               (_ft_txe                   ),
-    ._ft_wr                (_ft_wr                    ),
-    ._ft_rd                (_ft_rd                    ),
-	 ._ft_siwu               (_ft_siwu                  ),
-    .ft_byte_out           ( ft_byte_out              ),
-    .ft_byte_in            ( ft_byte_in               ));
-
-
-
-/*
- * Triad Decoder   FSMs to decode triads and map to half-strip hit register
- */
+wire dcm_rst=0;
+wire dcm_islocked;
 
 wire [7:0] tskip;   // Skipped triads
 wire triad_skip = (|tskip[0]) | (|tskip[1]) | (|tskip[2]) | (|tskip[3]) | (|tskip[4]) | (|tskip[5]);
+
+wire lctclk_en = 1'b1;
+
+//------------------------------------------------------------------------------
+// 40 MHz Clock Generation
+//------------------------------------------------------------------------------
+
+dcm uclkgen (
+    .CLK_IN1  ( osc40), // Oscillator 40MHz
+    .CLK_OUT1 ( clk80), // 80 MHz logic output
+    .CLK_OUT2 ( clk40), // 40 MHz logic output
+    .RESET    ( dcm_rst),       // IN
+    .LOCKED   ( dcm_islocked)
+);
+
+
+//----------------------------------------------------------------------------------------------------------------------
+// should add 2nd dcm to phase shift the 40MHz clock for the comparators
+//----------------------------------------------------------------------------------------------------------------------
+
+dcm uclkgen (
+    .CLK_IN1  ( clk40),   // 40 MHz input
+    .CLK_OUT1 ( lct_clk), // Phase-shifted 40MHz output
+    .RESET    ( dcm_rst), // IN
+    .LOCKED   ( dcm_islocked)
+);
+
+//----------------------------------------------------------------------------------------------------------------------
+// forward 40mhz clock to the lct comparator
+//----------------------------------------------------------------------------------------------------------------------
+
+
+ODDR2 #(
+    .DDR_ALIGNMENT("NONE"), // Sets output alignment to "NONE", "C0" or "C1"
+    .INIT(1'b0),            // Sets initial state of the Q output to 1'b0 or 1'b1
+    .SRTYPE("SYNC")         // Specifies "SYNC" or "ASYNC" set/reset
+    ) clock_forward_inst (
+        .Q  (lctclk), // 1-bit DDR output data
+        .C0 ( clk40), // 1-bit clock input
+        .C1 (~clk40), // 1-bit clock input
+        .CE (lctclk_en),   // 1-bit clock enable input
+        .D0 (1'b0),   // 1-bit data input (associated with C0)
+        .D1 (1'b1),   // 1-bit data input (associated with C1)
+        .R  (1'b0)    // 1-bit reset input
+        //.S(1'b1)    // 1-bit set input
+    );
+
+
+//----------------------------------------------------------------------------------------------------------------------
+// Comparator Injector
+//----------------------------------------------------------------------------------------------------------------------
+
+comparator_injector u_comparator_injector (
+    .compin                (compin                   ), // Out to comparator 
+    .compout               (compout                  ), // In  from comparator
+
+    .halfstrips            (halfstrips       [31:0]  ), // In  from triad decoder
+    .halfstrips_last       (halfstrips_last  [31:0]  ), // Out Latched copy of last non-zero triads
+    .halfstrips_expect     (halfstrips_expect[31:0]  ), // In  software-set expected halfstrip pattern
+    .offsets_errcnt     (offsets_errcnt[31:0]  ), // Out
+    .thresholds_errcnt     (thresholds_errcnt[31:0]  ),
+    .compout_errcnt        (compout_errcnt           ),
+    .compout_expect        (compout_expect           ),
+    .compout_ff            (compout_ff               ),
+    .active_strip_mask     (active_strip_mask[31:0]  ),
+    .compout_errcnt_rst    (compout_errcnt_rst       ),
+    .offsets_errcnt_rst (offsets_errcnt_rst    ),
+    .thresholds_errcnt_rst (thresholds_errcnt_rst    ),
+    .compin_inject         (compin_inject            ),
+    .fire_pulse            (fire_pulse               ), // In  inject pulse
+    .pulser_ready          (pulser_ready             ), // Out pulser is idle
+    .bx_delay              (bx_delay[3:0]            ), // In  delay after pulsing before reading out half-strips
+    .pulse_width           (pulse_width[3:0]         ), // In  width of digital pulse (in bx)
+    .pulse_en              (pulse_en                 ), // Out turn on pulse
+    .clk                   (clk40                    )
+);
+
+//----------------------------------------------------------------------------------------------------------------------
+//
+//----------------------------------------------------------------------------------------------------------------------
+
+
+// SPI Serial Interface
+serial u_serial            (
+
+    .bx_delay              (bx_delay[3:0]),
+    .pulse_width           (pulse_width[3:0]),
+    .fire_pulse            (fire_pulse),
+    .pulser_ready          (pulser_ready),
+    .triad_persist         (triad_persist[3:0]),
+    .triad_persist1        (triad_persist1),
+
+    .halfstrips            (halfstrips_last    [31:0]),
+    .halfstrips_expect     (halfstrips_expect[31:0]),
+
+    .offsets_errcnt     (offsets_errcnt[31:0]),
+    .offsets_errcnt_rst (offsets_errcnt_rst),
+
+    .thresholds_errcnt     (thresholds_errcnt[31:0]),
+    .thresholds_errcnt_rst (thresholds_errcnt_rst),
+
+    .compout_expect        (compout_expect),
+    .compout_ff            (compout_ff),
+
+    .compout_errcnt        (compout_errcnt),
+    .compout_errcnt_rst    (compout_errcnt_rst),
+
+    .compin_inject         (compin_inject),
+
+    .pktime                (pktime[2:0]),
+    .pkmode                (pkmode[1:0]),
+    .lctrst                (lctrst),
+
+    .active_strip_mask     (active_strip_mask[31:0]), // OUT set mask of expected half-strips for this pattern
+
+    .high_adr              (high_adr_raw[3:0]), // Pulser high amplitude address
+    .med_adr               (med_adr_raw[3:0]),  // Pulser med amplitude address
+    .low_adr               (low_adr_raw[3:0]),  // Pulser low amplitude address
+
+    .mux_en                (mux_en_raw),
+
+    .mux_a0_next           (mux_a0_next),  // OUT next mux address 0
+    .mux_a1_next           (mux_a1_next),  // OUT next mux address 1
+
+    .mux_a0_prev           (mux_a0_prev),
+    .mux_a1_prev           (mux_a1_prev),
+
+    .clk                   (clk40)
+);
+
+wire [3:0] high_adr_raw;
+wire [3:0] med_adr_raw;
+wire [3:0] low_adr_raw;
+
+//----------------------------------------------------------------------------------------------------------------------
+// Triad Decoder   FSMs to decode triads and map to half-strip hit register
+//----------------------------------------------------------------------------------------------------------------------
 
 genvar idistrip;
 generate
@@ -317,4 +231,24 @@ begin: distrip_loop
 end
 endgenerate
 
+//----------------------------------------------------------------------------------------------------------------------
+// Mux Protector
+//----------------------------------------------------------------------------------------------------------------------
+
+mux_protect umux_protect
+(
+  .clock      ( clk40),
+
+  .high_adr   ( high_adr_raw), // software set address
+  .med_adr    ( med_adr_raw ), // software set address
+  .low_adr    ( low_adr_raw ), // software set address
+
+  .mux_en_in  ( mux_en_raw),   // software set mux_enable
+
+  .mux_en_out ( mux_en)        // hardware controlled mux_enable; shutoff if address conflict
+
+);
+
+//-the bitter end-------------------------------------------------------------------------------------------------------
 endmodule
+//----------------------------------------------------------------------------------------------------------------------
