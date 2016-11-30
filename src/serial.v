@@ -4,6 +4,8 @@ module serial
 (
     input clock,
 
+    input reset,
+
     input  [31:0] data_wr,
     output [31:0] data_rd,
     input  [7:0]  adr_in,
@@ -106,9 +108,11 @@ for (ireg=0; ireg<MXREG; ireg=ireg+1) begin: regloop
   )
   u_regloop (
     .clock   (clock),
-    .adr     (adr),               // serial address
-    .data_wr (data_wr_vec[ireg]), // register memory
-    .bus_wr  (data_wr),           // data input from SPI
+    .reset   (reset),
+    .adr     (adr),                // serial address
+    .data_wr (data_wr_vec[ireg]),  // register memory
+    .init    (data_wr_init[ireg]), // register memory
+    .bus_wr  (data_wr),            // data input from SPI
     .wr      (wr)
   );
 
@@ -127,12 +131,17 @@ for (ireg=0; ireg<MXREG; ireg=ireg+1) begin: regloop
 
   else if (ireg==adr_comp_config) begin
 
+
+    // init
+
+    initial data_wr_init[ireg][31:0] = 32'd0;
+    initial data_wr_init[ireg][5:5]  = 1'd1;
+
     // Write
 
     assign  pktime[2:0] = data_wr_vec[ireg][2:0]; 
     assign  pkmode[1:0] = data_wr_vec[ireg][4:3];
     assign  lctrst      = data_wr_vec[ireg][5:5]; 
-    initial data_wr_init[ireg][5:5] = 1'd1;
 
     // Read
 
@@ -146,16 +155,20 @@ for (ireg=0; ireg<MXREG; ireg=ireg+1) begin: regloop
 
   else if (ireg==adr_fire_pulse) begin
 
+    // init
+
+    initial data_wr_init[ireg][31:0] = 32'd0;
+
     // Write
 
-    assign  fire_pulse              = data_wr_vec[ireg][0];
-    assign  offsets_errcnt_rst   = data_wr_vec[ireg][1];
-    assign  compout_errcnt_rst      = data_wr_vec[ireg][2];
-    assign  thresholds_errcnt_rst   = data_wr_vec[ireg][3];
+    assign  fire_pulse            = data_wr_vec[ireg][0];
+    assign  offsets_errcnt_rst    = data_wr_vec[ireg][1];
+    assign  compout_errcnt_rst    = data_wr_vec[ireg][2];
+    assign  thresholds_errcnt_rst = data_wr_vec[ireg][3];
 
     // Read back
 
-    assign data_rd_vec[ireg] = data_wr_vec[ireg];
+    assign  data_rd_vec[ireg] = data_wr_vec[ireg];
 
   end
 
@@ -164,6 +177,10 @@ for (ireg=0; ireg<MXREG; ireg=ireg+1) begin: regloop
   //------------------------------------------------------------------------------
 
   else if (ireg==adr_pulse_ctrl) begin
+
+    // init
+
+    initial data_wr_init[ireg][31:0] = 32'd0;
 
     // Write
 
@@ -176,10 +193,10 @@ for (ireg=0; ireg<MXREG; ireg=ireg+1) begin: regloop
 
     // Read
 
-    assign data_rd_vec[ireg][20:0]  = data_wr_vec[ireg][20:0]; // readback
-    assign data_rd_vec[ireg][21]    = compout_last;              // read only
-    assign data_rd_vec[ireg][22]    = pulser_ready;            // read only
-    assign data_rd_vec[ireg][31:23] = data_wr_vec[ireg][31:23];    // readback
+    assign data_rd_vec[ireg][20:0]  = data_wr_vec[ireg][20:0];  // readback
+    assign data_rd_vec[ireg][21]    = compout_last;             // read only
+    assign data_rd_vec[ireg][22]    = pulser_ready;             // read only
+    assign data_rd_vec[ireg][31:23] = data_wr_vec[ireg][31:23]; // readback
 
   end
 
@@ -188,6 +205,10 @@ for (ireg=0; ireg<MXREG; ireg=ireg+1) begin: regloop
   //------------------------------------------------------------------------------
 
   else if (ireg==adr_mux_ctrl) begin
+
+    // init
+
+    initial data_wr_init[ireg][31:0] = 32'd0;
 
     // Write
 
@@ -215,6 +236,11 @@ for (ireg=0; ireg<MXREG; ireg=ireg+1) begin: regloop
 
   else if (ireg==adr_halfstrips) begin
 
+
+    // init
+
+    initial data_wr_init[ireg][31:0] = 32'd0;
+
     // Read only
     assign data_rd_vec[ireg][31:0] = halfstrips [31:0]; // WRITE only
 
@@ -224,6 +250,11 @@ for (ireg=0; ireg<MXREG; ireg=ireg+1) begin: regloop
   // adr_halfstrips_expect
   //------------------------------------------------------------------------------
   else if (ireg==adr_halfstrips_expect) begin
+
+
+    // init
+
+    initial data_wr_init[ireg][31:0] = 32'd0;
 
     // write
     assign halfstrips_expect     [31:0] = data_wr_vec[ireg] [31:0];
@@ -237,6 +268,10 @@ for (ireg=0; ireg<MXREG; ireg=ireg+1) begin: regloop
   //------------------------------------------------------------------------------
 
   else if (ireg==adr_active_strip_mask) begin
+
+    // init
+
+    initial data_wr_init[ireg][31:0] = 32'd0;
 
     // write
     assign active_strip_mask     [31:0] = data_wr_vec[ireg][31:0];
@@ -252,6 +287,10 @@ for (ireg=0; ireg<MXREG; ireg=ireg+1) begin: regloop
 
   else if (ireg==adr_offsets_errcnt) begin
 
+    // init
+
+    initial data_wr_init[ireg][31:0] = 32'd0;
+
     // write
 
     // read
@@ -265,6 +304,11 @@ for (ireg=0; ireg<MXREG; ireg=ireg+1) begin: regloop
 
   else if (ireg==adr_compout_errcnt) begin
 
+
+    // init
+
+    initial data_wr_init[ireg][31:0] = 32'd0;
+
     // read only
     assign data_rd_vec[ireg] = compout_errcnt[31:0];
 
@@ -274,6 +318,9 @@ for (ireg=0; ireg<MXREG; ireg=ireg+1) begin: regloop
   //------------------------------------------------------------------------------
 
   else if (ireg==adr_thresholds_errcnt) begin
+
+    // init
+    initial data_wr_init[ireg][31:0] = 32'd0;
 
     // read only
     assign data_rd_vec[ireg] = thresholds_errcnt [31:0];

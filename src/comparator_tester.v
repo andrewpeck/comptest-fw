@@ -45,6 +45,10 @@ module comptest (
     input osc40
 );
 
+assign samd_clk = 1'bZ;
+
+// hold reset low at startup
+SRL16E #(.INIT(16'hFFFF)) upowerup (.CLK(clk40),.CE(1'b1),.D(1'b0),.A0(1'b1),.A1(1'b1),.A2(1'b1),.A3(1'b1),.Q(reset));
 
 /*
  * Inter-module connections
@@ -97,6 +101,10 @@ wire psdone;
 wire lock0, lock1;
 wire dcms_locked = lock0 & lock1;
 
+
+//------------------------------------
+// IBUFG clkin1_buf (.O (osc40_bufg), .I (osc40));
+
 dcm u_dcm0 (
   // Clock in ports
     .CLK_IN1 (osc40), // IN
@@ -132,6 +140,8 @@ dcm u_dcm1 (
     .RESET    (reset), // IN
     .LOCKED   (lock1)  // OUT
 );
+
+IBUFG sclk_ibufg (.O (sclk_buf), .I (sclk));
 
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -198,7 +208,7 @@ wire [DATASIZE-1:0] data_rd;
 spi #( .ADRSIZE  (ADRSIZE), .DATASIZE (DATASIZE)) uspi (
   .mosi         (mosi),
   .miso         (miso),
-  .sclk         (sclk),
+  .sclk         (sclk_buf),
   .cs           (cs),
   .adr_latched  (),
   .data_latched (),
@@ -210,7 +220,10 @@ spi #( .ADRSIZE  (ADRSIZE), .DATASIZE (DATASIZE)) uspi (
 
 // SPI Serial Interface
 serial u_serial            (
+
     .clock (clk40),
+
+    .reset (reset),
 
     .data_wr (data_wr),
     .data_rd (data_rd),
@@ -274,7 +287,7 @@ for (idistrip=0; idistrip<=7; idistrip=idistrip+1)
 begin: distrip_loop
     triad_decode utriad (
         .clock          ( clk40                               ),
-        .reset          ( 1'b0                                ),
+        .reset          ( reset                               ),
         .persist        ( triad_persist-1'b1                  ), // Output persistence-1, ie 5 gives 6-clk width
         .persist1       ( triad_persist1                      ), // Output persistence is 1, use with  persist=0
         .triad          ( distrip[idistrip]                   ),
@@ -300,6 +313,10 @@ mux_protect umux_protect
   .mux_en_out ( mux_en)        // hardware controlled mux_enable; shutoff if address conflict
 
 );
+
+assign adr_high = high_adr_raw;
+assign adr_med  = med_adr_raw;
+assign adr_low  = low_adr_raw;
 
 led_ctrl u_led (
   .reset       ( reset),
