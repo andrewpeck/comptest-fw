@@ -7,6 +7,10 @@ module comptest (
     input  sclk,
     input  cs,
 
+    input [5:0] samd_io,
+
+    output samd_clk,
+
     // Pulse Multiplexer Control
 
     output  mux_en, // global mux en
@@ -15,11 +19,10 @@ module comptest (
     output [3:0] adr_med,
     output [3:0] adr_low,
 
-    output  mux_a0_next,
-    output  mux_a1_next,
+    output [1:0] adr_next,
+    output [1:0] adr_prev,
 
-    output  mux_a1_prev,
-    output  mux_a0_prev,
+    input push_button,
 
     // Comparator Logic
 
@@ -249,11 +252,11 @@ serial u_serial            (
 
     .mux_en                (mux_en_raw),
 
-    .mux_a0_next           (mux_a0_next),  // OUT next mux address 0
-    .mux_a1_next           (mux_a1_next),  // OUT next mux address 1
+    .mux_a0_next           (adr_next[0]),  // OUT next mux address 0
+    .mux_a1_next           (adr_next[1]),  // OUT next mux address 1
 
-    .mux_a0_prev           (mux_a0_prev),
-    .mux_a1_prev           (mux_a1_prev)
+    .mux_a0_prev           (adr_prev[0]),
+    .mux_a1_prev           (adr_prev[1])
 
 );
 
