@@ -1,9 +1,9 @@
 module mux_protect (
   input clock,
 
-  input  [3:0] high_adr,
-  input  [3:0] med_adr,
-  input  [3:0] low_adr,
+  input  [3:0] high_adr_in,
+  input  [3:0] med_adr_in,
+  input  [3:0] low_adr_in,
 
   input mux_en_in,
 

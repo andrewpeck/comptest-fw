@@ -2,6 +2,8 @@
 
 module serial
 (
+    input clock,
+
     input  [31:0] data_wr,
     output [31:0] data_rd,
     input  [7:0]  adr_in,
@@ -26,7 +28,7 @@ module serial
     output        thresholds_errcnt_rst,
 
     output        compout_expect,
-    input         compout_ff,
+    input         compout_last,
     input  [31:0] compout_errcnt,
     output        compout_errcnt_rst,
     output        compin_inject,
@@ -80,8 +82,8 @@ wire      [31:0] data_rd_vec  [MXREG-1:0];
 
 // only write when wr goes high, to keep from writing on read-only transfers
 
-wire [6:0] adr = (adr[6:0]);
-wire       wr  = (adr[7:7]);
+wire [6:0] adr = (adr_in[6:0]);
+wire       wr  = (adr_in[7:7]);
 
 //----------------------------------------------------------------------------------------------------------------------
 // Bus Multiplexer selects between register outputs
@@ -97,9 +99,13 @@ genvar ireg;
 generate
 for (ireg=0; ireg<MXREG; ireg=ireg+1) begin: regloop
 
-  register_entry u_regloop (
-    .clk     (clk),
-    .regadr  (ireg),              // address of this register
+  register_entry #(
+  .ADRSIZE (7),
+  .REGSIZE (32),
+  .REGADR  (ireg)
+  )
+  u_regloop (
+    .clock   (clock),
     .adr     (adr),               // serial address
     .data_wr (data_wr_vec[ireg]), // register memory
     .bus_wr  (data_wr),           // data input from SPI
@@ -171,7 +177,7 @@ for (ireg=0; ireg<MXREG; ireg=ireg+1) begin: regloop
     // Read
 
     assign data_rd_vec[ireg][20:0]  = data_wr_vec[ireg][20:0]; // readback
-    assign data_rd_vec[ireg][21]    = compout_ff;              // read only
+    assign data_rd_vec[ireg][21]    = compout_last;              // read only
     assign data_rd_vec[ireg][22]    = pulser_ready;            // read only
     assign data_rd_vec[ireg][31:23] = data_wr_vec[ireg][31:23];    // readback
 

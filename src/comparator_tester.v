@@ -33,6 +33,8 @@ module comptest (
     output  [2:0] pktime,
     output  [1:0] pkmode,
 
+    output pulse_en,
+
     // Leds
 
     output [11:0] led,
@@ -53,7 +55,7 @@ wire [31:0] compout_errcnt;
 wire [31:0] thresholds_errcnt;
 
 wire compout_expect;
-wire compout_ff  ;
+wire compout_last  ;
 wire compout_errcnt_rst;
 wire offsets_errcnt_rst;
 wire compin_inject;
@@ -85,25 +87,49 @@ wire lctclk_en = 1'b1;
 // 40 MHz Clock Generation
 //------------------------------------------------------------------------------
 
-dcm uclkgen (
-    .CLK_IN1  ( osc40), // Oscillator 40MHz
-    .CLK_OUT1 ( clk80), // 80 MHz logic output
-    .CLK_OUT2 ( clk40), // 40 MHz logic output
-    .RESET    ( dcm_rst),       // IN
-    .LOCKED   ( dcm_islocked)
+
+wire psen = 0;
+wire psincdec = 0;
+wire psdone;
+wire lock0, lock1;
+wire dcms_locked = lock0 & lock1;
+
+dcm u_dcm0 (
+  // Clock in ports
+    .CLK_IN1 (osc40), // IN
+
+  // Clock out ports
+    .CLK_OUT1 (clk40), // OUT
+
+  // Dynamic phase shift ports
+    .PSCLK    (1'b0), // IN
+    .PSEN     (1'b0), // IN
+    .PSINCDEC (1'b0), // IN
+    .PSDONE   (),     // OUT
+
+  // Status and control signals
+    .RESET    (reset),  // IN
+    .LOCKED   (lock0)   // OUT
 );
 
+dcm u_dcm1 (
+  // Clock in ports
+    .CLK_IN1 (clk40), // IN
 
-//----------------------------------------------------------------------------------------------------------------------
-// should add 2nd dcm to phase shift the 40MHz clock for the comparators
-//----------------------------------------------------------------------------------------------------------------------
+  // Clock out ports
+    .CLK_OUT1 (clk_comp), // OUT
 
-dcm uclkgen (
-    .CLK_IN1  ( clk40),   // 40 MHz input
-    .CLK_OUT1 ( lct_clk), // Phase-shifted 40MHz output
-    .RESET    ( dcm_rst), // IN
-    .LOCKED   ( dcm_islocked)
+  // Dynamic phase shift ports
+    .PSCLK    (clk40),    // IN
+    .PSEN     (psen),     // IN
+    .PSINCDEC (psincdec), // IN
+    .PSDONE   (psdone),   // OUT
+
+  // Status and control signals
+    .RESET    (reset), // IN
+    .LOCKED   (lock1)  // OUT
 );
+
 
 //----------------------------------------------------------------------------------------------------------------------
 // forward 40mhz clock to the lct comparator
@@ -115,14 +141,14 @@ ODDR2 #(
     .INIT(1'b0),            // Sets initial state of the Q output to 1'b0 or 1'b1
     .SRTYPE("SYNC")         // Specifies "SYNC" or "ASYNC" set/reset
     ) clock_forward_inst (
-        .Q  (lctclk), // 1-bit DDR output data
-        .C0 ( clk40), // 1-bit clock input
-        .C1 (~clk40), // 1-bit clock input
-        .CE (lctclk_en),   // 1-bit clock enable input
-        .D0 (1'b0),   // 1-bit data input (associated with C0)
-        .D1 (1'b1),   // 1-bit data input (associated with C1)
-        .R  (1'b0)    // 1-bit reset input
-        //.S(1'b1)    // 1-bit set input
+        .Q  (lctclk),    // 1-bit DDR output data
+        .C0 ( clk_comp), // 1-bit clock input
+        .C1 (~clk_comp), // 1-bit clock input
+        .CE (lctclk_en), // 1-bit clock enable input
+        .D0 (1'b0),      // 1-bit data input (associated with C0)
+        .D1 (1'b1),      // 1-bit data input (associated with C1)
+        .R  (1'b0),      // 1-bit reset input
+        .S  ()           // 1-bit set input
     );
 
 
@@ -137,14 +163,14 @@ comparator_injector u_comparator_injector (
     .halfstrips            (halfstrips       [31:0]  ), // In  from triad decoder
     .halfstrips_last       (halfstrips_last  [31:0]  ), // Out Latched copy of last non-zero triads
     .halfstrips_expect     (halfstrips_expect[31:0]  ), // In  software-set expected halfstrip pattern
-    .offsets_errcnt     (offsets_errcnt[31:0]  ), // Out
+    .offsets_errcnt        (offsets_errcnt[31:0]     ), // Out
     .thresholds_errcnt     (thresholds_errcnt[31:0]  ),
     .compout_errcnt        (compout_errcnt           ),
     .compout_expect        (compout_expect           ),
-    .compout_ff            (compout_ff               ),
+    .compout_last            (compout_last               ),
     .active_strip_mask     (active_strip_mask[31:0]  ),
     .compout_errcnt_rst    (compout_errcnt_rst       ),
-    .offsets_errcnt_rst (offsets_errcnt_rst    ),
+    .offsets_errcnt_rst    (offsets_errcnt_rst       ),
     .thresholds_errcnt_rst (thresholds_errcnt_rst    ),
     .compin_inject         (compin_inject            ),
     .fire_pulse            (fire_pulse               ), // In  inject pulse
@@ -152,16 +178,40 @@ comparator_injector u_comparator_injector (
     .bx_delay              (bx_delay[3:0]            ), // In  delay after pulsing before reading out half-strips
     .pulse_width           (pulse_width[3:0]         ), // In  width of digital pulse (in bx)
     .pulse_en              (pulse_en                 ), // Out turn on pulse
-    .clk                   (clk40                    )
+    .clock                 (clk40                    )
 );
 
 //----------------------------------------------------------------------------------------------------------------------
 //
 //----------------------------------------------------------------------------------------------------------------------
 
+parameter ADRSIZE  = 8;
+parameter DATASIZE = 32;
+
+wire [ADRSIZE-1:0] adr;
+wire [DATASIZE-1:0] data_wr;
+wire [DATASIZE-1:0] data_rd;
+
+spi #( .ADRSIZE  (ADRSIZE), .DATASIZE (DATASIZE)) uspi (
+  .mosi         (mosi),
+  .miso         (miso),
+  .sclk         (sclk),
+  .cs           (cs),
+  .adr_latched  (),
+  .data_latched (),
+  .adr          (adr),
+  .data_wr      (data_wr),
+  .data_rd      (data_rd)
+
+);
 
 // SPI Serial Interface
 serial u_serial            (
+    .clock (clk40),
+
+    .data_wr (data_wr),
+    .data_rd (data_rd),
+    .adr_in  (adr),
 
     .bx_delay              (bx_delay[3:0]),
     .pulse_width           (pulse_width[3:0]),
@@ -173,14 +223,14 @@ serial u_serial            (
     .halfstrips            (halfstrips_last    [31:0]),
     .halfstrips_expect     (halfstrips_expect[31:0]),
 
-    .offsets_errcnt     (offsets_errcnt[31:0]),
-    .offsets_errcnt_rst (offsets_errcnt_rst),
+    .offsets_errcnt        (offsets_errcnt[31:0]),
+    .offsets_errcnt_rst    (offsets_errcnt_rst),
 
     .thresholds_errcnt     (thresholds_errcnt[31:0]),
     .thresholds_errcnt_rst (thresholds_errcnt_rst),
 
     .compout_expect        (compout_expect),
-    .compout_ff            (compout_ff),
+    .compout_last          (compout_last),
 
     .compout_errcnt        (compout_errcnt),
     .compout_errcnt_rst    (compout_errcnt_rst),
@@ -193,9 +243,9 @@ serial u_serial            (
 
     .active_strip_mask     (active_strip_mask[31:0]), // OUT set mask of expected half-strips for this pattern
 
-    .high_adr              (high_adr_raw[3:0]), // Pulser high amplitude address
-    .med_adr               (med_adr_raw[3:0]),  // Pulser med amplitude address
-    .low_adr               (low_adr_raw[3:0]),  // Pulser low amplitude address
+    .mux_high_adr          (high_adr_raw[3:0]), // Pulser high amplitude address
+    .mux_med_adr           (med_adr_raw[3:0]),  // Pulser med amplitude address
+    .mux_low_adr           (low_adr_raw[3:0]),  // Pulser low amplitude address
 
     .mux_en                (mux_en_raw),
 
@@ -203,9 +253,8 @@ serial u_serial            (
     .mux_a1_next           (mux_a1_next),  // OUT next mux address 1
 
     .mux_a0_prev           (mux_a0_prev),
-    .mux_a1_prev           (mux_a1_prev),
+    .mux_a1_prev           (mux_a1_prev)
 
-    .clk                   (clk40)
 );
 
 wire [3:0] high_adr_raw;
@@ -239,14 +288,22 @@ mux_protect umux_protect
 (
   .clock      ( clk40),
 
-  .high_adr   ( high_adr_raw), // software set address
-  .med_adr    ( med_adr_raw ), // software set address
-  .low_adr    ( low_adr_raw ), // software set address
+  .high_adr_in( high_adr_raw), // software set address
+  .med_adr_in ( med_adr_raw ), // software set address
+  .low_adr_in ( low_adr_raw ), // software set address
 
   .mux_en_in  ( mux_en_raw),   // software set mux_enable
 
   .mux_en_out ( mux_en)        // hardware controlled mux_enable; shutoff if address conflict
 
+);
+
+led_ctrl u_led (
+  .reset       ( reset),
+  .dcms_locked (dcms_locked),
+  .clock       ( clk40),
+  .halfstrips  ( halfstrips),
+  .leds        ( led[11:0])
 );
 
 //-the bitter end-------------------------------------------------------------------------------------------------------
