@@ -30,9 +30,9 @@ wire [3:0] side_flash;
 always @(posedge clock) begin
   if (!dcms_locked) begin
     leds[7:0]  <= cylontwo;
-    leds[11:8] <= 4'd3;
+    leds[11:8] <= 4'h0;
   end
-  else if (idle) begin
+  else if (pulser_ready) begin
     leds[7:0]  <= cylonone;
     leds[11:8] <= 4'd0;
   end

@@ -7,7 +7,7 @@ module mux_protect (
 
   input mux_en_in,
 
-  output mux_en_out
+  output reg mux_en_out
 
 );
 
@@ -20,6 +20,8 @@ wire short_med_low  = ( med_adr_in==low_adr_in);
 
 wire short = short_high_med || short_high_low || short_med_low;
 
-assign mux_en_out = mux_en_in && !short;
+always @(posedge clock) begin
+ mux_en_out <= mux_en_in && !short;
+end
 
 endmodule

@@ -48,7 +48,7 @@ NET "samd_clk"    LOC = "P47";
 
 NET "miso"        LOC = "P40";
 NET "cs"          LOC = "P41";
-NET "mosi"        LOC = "P43";
+NET "mosi"        LOC = "P45";
 NET "sclk"        LOC = "P44";
 
 NET "sclk" CLOCK_DEDICATED_ROUTE = FALSE;

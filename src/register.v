@@ -18,8 +18,10 @@ parameter REGADR  = 0;
 wire wr_reg = (adr==REGADR && wr);
 
 always @ (posedge clock) begin
-  if      (reset)  data_wr <= init;
-  else if (wr_reg) data_wr <= bus_wr;
+	if (reset)  
+		data_wr <= init;
+	else 
+		data_wr <= (wr_reg) ? bus_wr : data_wr; 
 end
 
 

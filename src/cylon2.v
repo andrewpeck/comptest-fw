@@ -33,7 +33,7 @@
 // Scale clock down below visual fusion
   `ifndef DEBUG_CYLON2
   parameter MXPRE = 21;  `else
-  parameter MXPRE = 2;
+  parameter MXPRE = 6;
   `endif
 
   reg   [MXPRE-1:0] prescaler  = 0;
@@ -63,13 +63,13 @@
 
   always @(adr) begin
   case (adr)
-  3'd0:  rom  <=  8'b01000001;
-  3'd1:  rom  <=  8'b00100010;
-  3'd2:  rom  <=  8'b00010100;
-  3'd3:  rom  <=  8'b00001000;
-  3'd4:  rom  <=  8'b00010100;
-  3'd5:  rom  <=  8'b00100010;
-  3'd6:  rom  <=  8'b01000001;
+  3'd0:  rom  <=  8'b10000001;
+  3'd1:  rom  <=  8'b01000010;
+  3'd2:  rom  <=  8'b00100100;
+  3'd3:  rom  <=  8'b00011000;
+  3'd4:  rom  <=  8'b00100100;
+  3'd5:  rom  <=  8'b01000010;
+  3'd6:  rom  <=  8'b10000001;
   3'd7:  rom  <=  8'b11111111;
   endcase
   end
