@@ -16,7 +16,7 @@
 // Ports
   input       clock;
   input  [1:0]  rate;
-  output  [7:0]  q;
+  output  [11:0]  q;
 
 // Initialization
   wire [3:0] pdly  = 0;
@@ -46,9 +46,9 @@
   wire next_adr = (prescaler==full_scale);
 
 // ROM address pointer runs 0 to 13
-  reg  [3:0] adr = 15;
+  reg  [4:0] adr = 0;
 
-  wire last_adr = (adr==13);
+  wire last_adr = (adr==22);
   
   always @(posedge clock) begin
   if (next_adr) begin
@@ -58,26 +58,34 @@
   end
 
 // Display pattern ROM
-  reg  [7:0] rom;
+  reg  [11:0] rom;
 
   always @(adr) begin
   case (adr)
-  4'd0:  rom   <=  8'b00000001;
-  4'd1:  rom   <=  8'b00000010;
-  4'd2:  rom   <=  8'b00000100;
-  4'd3:  rom   <=  8'b00001000;
-  4'd4:  rom   <=  8'b00010000;
-  4'd5:  rom   <=  8'b00100000;
-  4'd6:  rom   <=  8'b01000000;
-  4'd7:  rom   <=  8'b10000000;
-  4'd8:  rom   <=  8'b01000000;
-  4'd9:  rom   <=  8'b00100000;
-  4'd10:  rom  <=  8'b00010000;
-  4'd11:  rom  <=  8'b00001000;
-  4'd12:  rom  <=  8'b00000100;
-  4'd13:  rom  <=  8'b00000010;
-  4'd14:  rom  <=  8'b00000001;
-  4'd15:  rom  <=  8'b11111111;
+  5'd0:  rom  <=  12'b000000000001;
+  5'd1:  rom  <=  12'b000000000010;
+  5'd2:  rom  <=  12'b000000000100;
+  5'd3:  rom  <=  12'b000000001000;
+  5'd4:  rom  <=  12'b000000010000;
+  5'd5:  rom  <=  12'b000000100000;
+  5'd6:  rom  <=  12'b000001000000;
+  5'd7:  rom  <=  12'b000010000000;
+  5'd8:  rom  <=  12'b000100000000;
+  5'd9:  rom  <=  12'b001000000000;
+  5'd10: rom  <=  12'b010000000000;
+  5'd10: rom  <=  12'b100000000000;
+  5'd11: rom  <=  12'b100000000000;
+  5'd12: rom  <=  12'b010000000000;
+  5'd13: rom  <=  12'b001000000000;
+  5'd14: rom  <=  12'b000100000000;
+  5'd15: rom  <=  12'b000010000000;
+  5'd16: rom  <=  12'b000001000000;
+  5'd17: rom  <=  12'b000000100000;
+  5'd18: rom  <=  12'b000000010000;
+  5'd19: rom  <=  12'b000000001000;
+  5'd20: rom  <=  12'b000000000100;
+  5'd21: rom  <=  12'b000000000010;
+  5'd22: rom  <=  12'b000000000001;
   endcase
   end
 

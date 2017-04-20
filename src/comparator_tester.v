@@ -73,8 +73,15 @@ wire [15:0] thresholds_errcnt;
 
 wire compout_expect;
 wire compout_last  ;
-wire compout_errcnt_rst;
-wire offsets_errcnt_rst;
+
+wire compout_errcnt_rst_serial;
+wire offsets_errcnt_rst_serial;
+wire thresholds_errcnt_rst_serial;
+
+wire compout_errcnt_rst = compout_errcnt_rst_serial | fpga_reset_pin;
+wire offsets_errcnt_rst = offsets_errcnt_rst_serial | fpga_reset_pin;
+wire thresholds_errcnt_rst = thresholds_errcnt_rst_serial | fpga_reset_pin;
+
 wire compin_inject;
 
 wire pulser_ready;
@@ -92,6 +99,9 @@ wire triad_perist1;
 wire [3:0] triad_persist;
 wire [13:0] pdac_data;
 wire [13:0] cdac_data;
+wire [15:0] restore_cnt; 
+
+wire [7:0] response_time;
 
 wire dcm_rst=0;
 wire dcm_islocked;
@@ -128,8 +138,9 @@ wire dcms_locked = 1'b1; //lock0 & lock1;
 
 //------------------------------------
 // IBUFG clkin1_buf (.O (osc40_bufg), .I (osc40));
- // IBUFG clkin1_buf (.O (clk40), .I (cclk));
-BUFG (.O(clk40), .I(cclk));
+IBUFG clkin1_buf (.O (clk40), .I (osc40));
+//BUFG (.O(clk40), .I(cclk));
+//BUFG (.O(clk40), .I(osc40));
 
 // dcm u_dcm0 (
 //   // Clock in ports
@@ -218,6 +229,8 @@ comparator_injector u_comparator_injector (
     .bx_delay              (bx_delay[3:0]            ), // In  delay after pulsing before reading out half-strips
     .pulse_width           (pulse_width[3:0]         ), // In  width of digital pulse (in bx)
     .pulse_en              (pulse_en                 ), // Out turn on pulse
+	 .restore_cnt           (restore_cnt[15:0]        ),
+	 .peak_time             (response_time[7:0]       ),
     .clock                 (clk40                    )
 );
 
@@ -269,16 +282,16 @@ serial u_serial            (
     .halfstrips_last       (halfstrips_last    [31:0]),
 
     .offsets_errcnt        (offsets_errcnt[15:0]),
-    .offsets_errcnt_rst    (offsets_errcnt_rst),
+    .offsets_errcnt_rst    (offsets_errcnt_rst_serial),
 
     .thresholds_errcnt     (thresholds_errcnt[15:0]),
-    .thresholds_errcnt_rst (thresholds_errcnt_rst),
+    .thresholds_errcnt_rst (thresholds_errcnt_rst_serial),
 
     .compout_expect        (compout_expect),
     .compout_last          (compout_last),
 
     .compout_errcnt        (compout_errcnt),
-    .compout_errcnt_rst    (compout_errcnt_rst),
+    .compout_errcnt_rst    (compout_errcnt_rst_serial),
 
     .compin_inject         (compin_inject),
 
@@ -288,6 +301,10 @@ serial u_serial            (
 
     .active_halfstrip      (active_halfstrip[4:0]), // OUT
     .halfstrip_mask_en     (halfstrip_mask_en), // OUT
+	 
+	 .restore_cnt            (restore_cnt[15:0]), 
+	 
+	 .response_time         (response_time[7:0]),
 
     .mux_high_adr          (high_adr_raw[3:0]), // Pulser high amplitude address
     .mux_med_adr           (med_adr_raw[3:0]),  // Pulser med amplitude address
@@ -311,13 +328,18 @@ wire [3:0] low_adr_raw;
 // Triad Decoder   FSMs to decode triads and map to half-strip hit register
 //----------------------------------------------------------------------------------------------------------------------
 
-reg posneg = 1;
+reg posneg = 1; // 1==positive, 0==negative
 
 reg   [7:0] distrip_neg;
+reg   [7:0] distrip_pos;
+
 always@(negedge clk40)
   distrip_neg <= distrip;
 
-wire [8:0] distrips_in = (posneg) ? distrip_neg : distrip;
+always@(posedge clk40)
+  distrip_pos <= distrip;
+
+wire [8:0] distrips_in = (posneg) ? distrip_pos : distrip_neg;
 
 
 genvar idistrip;
@@ -370,6 +392,7 @@ end
 led_ctrl u_led (
  .reset       (reset),
  .dcms_locked (dcms_locked),
+ .push_button (push_button),
  .clock       (clk40),
  .pulser_ready (pulser_ready), 
  .halfstrips  (halfstrips),

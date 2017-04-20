@@ -101,8 +101,9 @@ reg [4:0] active_halfstrip = 17;
 reg halfstrip_mask_en =1; 
 
 reg compout_errcnt_rst = 0; 
-
 reg thresholds_errcnt_rst = 0; 
+reg offsets_errcnt_rst = 0; 
+
 reg compin_inject = 1; 
 
 reg fire_pulse = 1; 
@@ -122,7 +123,7 @@ comparator_injector instance_name (
     .thresholds_errcnt(thresholds_errcnt), 
     .offsets_errcnt(offsets_errcnt), 
     .compout_errcnt(compout_errcnt), 
-    .compout(compout), 
+    .compout(0), 
     .compout_expect(compout_expect), 
     .compout_last(compout_last), 
     .active_halfstrip(active_halfstrip), 

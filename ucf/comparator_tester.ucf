@@ -1,5 +1,8 @@
 CONFIG PART = XC6SLX4-3TQG144 ;
 
+NET pulse_en DRIVE = 2;
+NET lctclk   DRIVE = 2;
+
 NET "pulse_en"    LOC = "P34";
 
 NET "osc40"       LOC = "P24";

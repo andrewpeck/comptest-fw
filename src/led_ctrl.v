@@ -1,22 +1,17 @@
 module led_ctrl (
   input         dcms_locked,
+input push_button, 
+input pulser_ready, 
   input         reset,
   input         clock,
   input  [31:0] halfstrips,
   output reg [11:0] leds
 );
 
-reg idle=1;
 
-always @(posedge clock) begin
-  if (reset)
-    idle <= 1'b1;
-  else if (|halfstrips)
-    idle <= 1'b0;
-end
 
-wire [7:0] cylonone;
-wire [7:0] cylontwo;
+wire [11:0] cylonone;
+wire [11:0] cylontwo;
 
 cylon1 ucylon1 (clock, 2'd0, cylonone);
 cylon2 ucylon2 (clock, 2'd0, cylontwo);
@@ -28,17 +23,15 @@ wire [7:0] distrip_flash;
 wire [3:0] side_flash;
 
 always @(posedge clock) begin
-  if (!dcms_locked) begin
-    leds[7:0]  <= cylontwo;
-    leds[11:8] <= 4'h0;
+  if (!push_button || !dcms_locked) begin
+    leds[11:0]  <= cylontwo;
   end
-  else if (pulser_ready) begin
-    leds[7:0]  <= cylonone;
-    leds[11:8] <= 4'd0;
+  else if (idle) begin
+    leds[11:0]  <= cylonone;
   end
   else begin
-    leds[7:0]  <= distrip_flash[7:0];
-    leds[11:8] <= side_flash[3:0];
+    leds[7:0]  <= ~distrip_flash[7:0];
+    leds[11:8] <= ~side_flash[3:0];
   end
 end
 
@@ -71,5 +64,17 @@ x_flashsm uflash8  (side[0],1'b0,clock,side_flash[0]);
 x_flashsm uflash9  (side[1],1'b0,clock,side_flash[1]);
 x_flashsm uflash10 (side[2],1'b0,clock,side_flash[2]);
 x_flashsm uflash11 (side[3],1'b0,clock,side_flash[3]);
+
+x_flashsm uflash12 (~pulser_ready,1'b0,clock,busy);
+
+reg [22:0] busy_counter=0; 
+wire idle = (busy_counter==0);
+always @(posedge clock) begin
+	if (!pulser_ready) 
+		busy_counter <= ~0; 
+	else  if (busy_counter!=0) begin
+		busy_counter<= busy_counter-1'b1; 
+	end
+end
 
 endmodule

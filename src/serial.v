@@ -17,6 +17,7 @@ module serial
     output [3:0] pulse_width,
     output       fire_pulse,
     input        pulser_ready,
+	 output [15:0] restore_cnt, 
 
     output [3:0] triad_persist,
     output       triad_persist1,
@@ -36,6 +37,8 @@ module serial
     output        compout_errcnt_rst,
     output        compin_inject,
 
+	input [7:0] response_time, 
+	
     // Comparator Config
     output [2:0] pktime,
     output [1:0] pkmode,
@@ -73,9 +76,11 @@ parameter adr_halfstrips2        = 7'd7;
 parameter adr_active_strip_mask  = 7'd9;
 parameter adr_offsets_errcnt     = 7'd11;
 parameter adr_compout_errcnt     = 7'd12;
-parameter adr_thresholds_errcnt  = 7'd13; // last address
+parameter adr_thresholds_errcnt  = 7'd13;
+parameter adr_restore_cnt        = 7'd14; // last address
+parameter adr_response_time      = 7'd15; // last address
 
-parameter MXREG = adr_thresholds_errcnt + 1'b1;
+parameter MXREG = adr_response_time + 1'b1;
 
 wire      [15:0] data_wr_vec  [MXREG-1:0];
 reg       [15:0] data_wr_init [MXREG-1:0];
@@ -340,6 +345,37 @@ for (ireg=0; ireg<MXREG; ireg=ireg+1) begin: regloop
 
     // read only
     assign data_rd_vec[ireg] = thresholds_errcnt [15:0];
+
+  end
+  
+    //------------------------------------------------------------------------------
+  // adr_restore_cnt
+  //------------------------------------------------------------------------------
+
+  else if (ireg==adr_restore_cnt) begin
+
+    // init
+    initial data_wr_init[ireg][15:0] = 16'd1024;
+
+	// write
+    assign  restore_cnt[15:0] = data_wr_vec[ireg] [15:0];
+	 
+    // read
+    assign data_rd_vec[ireg] = data_wr_vec[ireg];
+
+  end
+    //------------------------------------------------------------------------------
+  // adr_thresholds_errcnt
+  //------------------------------------------------------------------------------
+
+  else if (ireg==adr_response_time) begin
+
+    // init
+    initial data_wr_init[ireg][15:0] = 16'd0;
+
+    // read only
+    assign data_rd_vec[ireg][7:0] = response_time [7:0];
+	 assign data_rd_vec[ireg][15:8] = 0;
 
   end
 
